@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>나만의 가계부 🌸</title>
+  <link rel="stylesheet" href="style.css"/>
+  <!-- Firebase compat SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <script src="firebase-sync.js"></script>
+</head>
+<body>
+
+<!-- ===== 로그인 오버레이 ===== -->
+<div id="fb-login-overlay">
+  <div class="fb-login-card">
+    <div class="fb-login-logo">
+      <div class="logo-circle" style="width:56px;height:56px;font-size:24px;border-radius:18px;">가</div>
+    </div>
+    <h2 class="fb-login-title">나만의 가계부</h2>
+    <p class="fb-login-sub">Google 계정으로 로그인하면<br>모든 기기에서 데이터가 동기화돼요 ☁️</p>
+    <button id="fb-login-btn" class="fb-google-btn" onclick="FB_GOOGLE_LOGIN()">
+      <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.5 0 6.5 1.2 8.9 3.2l6.6-6.6C35.5 2.5 30.1 0 24 0 14.7 0 6.7 5.5 2.9 13.5l7.7 6C12.4 13.2 17.8 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8C43.8 37.2 46.5 31.3 46.5 24.5z"/><path fill="#FBBC05" d="M10.6 28.5c-.5-1.5-.8-3-.8-4.5s.3-3 .8-4.5l-7.7-6C1 16.5 0 20.1 0 24s1 7.5 2.9 10.5l7.7-6z"/><path fill="#34A853" d="M24 48c6.1 0 11.2-2 14.9-5.5l-7.5-5.8c-2 1.4-4.6 2.2-7.4 2.2-6.2 0-11.5-3.7-13.4-9l-7.7 6C6.7 42.5 14.7 48 24 48z"/></svg>
+      Google로 로그인
+    </button>
+    <p class="fb-login-notice">로그인 정보는 Google 인증을 통해 안전하게 처리됩니다</p>
+  </div>
+</div>
+
+<div id="app">
+  <!-- Sidebar overlay for mobile -->
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="App.closeSidebar()"></div>
+
+  <!-- Sidebar -->
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="logo-circle">가</div>
+      <div class="logo-text">
+        <div class="logo-title">나만의 가계부</div>
+        <div class="logo-sub">My Budget 🌸</div>
+      </div>
+    </div>
+    <ul class="nav-list">
+      <li class="nav-item active" data-tab="dashboard">🏠 대시보드</li>
+      <li class="nav-item" data-tab="income">💰 수입 / 지출</li>
+      <li class="nav-item" data-tab="credit">💳 신용카드</li>
+      <li class="nav-item" data-tab="assets">🏦 자산 목록</li>
+      <li class="nav-item" data-tab="calendar">🗓️ 소비 캘린더</li>
+      <li class="nav-item" data-tab="food">🍱 식비 캘린더</li>
+      <li class="nav-item" data-tab="ledger">📒 가계부</li>
+    </ul>
+    <button class="sidebar-delete-btn" onclick="App.openDeleteModal()">🗑️ 데이터 삭제</button>
+    <div class="sidebar-footer fb-user-info">
+      <img id="fb-sidebar-photo" src="" alt="" style="display:none;width:28px;height:28px;border-radius:50%;object-fit:cover;flex-shrink:0;">
+      <span id="fb-sidebar-name" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">로그인 중...</span>
+      <button onclick="FB_LOGOUT()" title="로그아웃" style="background:none;border:none;cursor:pointer;font-size:14px;padding:2px;opacity:.6;flex-shrink:0;">🚪</button>
+    </div>
+  </nav>
+
+  <!-- Hamburger button (mobile) -->
+  <button class="hamburger-btn" id="hamburger-btn" onclick="App.toggleSidebar()">☰</button>
+
+  <main class="main-content">
+
+    <!-- ===== DASHBOARD ===== -->
+    <section class="tab-content active" id="tab-dashboard">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">대시보드 🏠</h1>
+          <p class="page-sub">이번 달 예산 현황 한눈에 보기 👀</p>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <button class="report-btn" onclick="App.downloadMonthlyReport()">📊 한달 요약</button>
+          <div class="month-nav">
+            <button class="month-btn" onclick="App.changeMonth(-1,'dashboard')">‹</button>
+            <span class="month-label" id="dash-month-label"></span>
+            <button class="month-btn" onclick="App.changeMonth(1,'dashboard')">›</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="budget-banner" id="dash-budget-banner">
+        <div class="banner-tag">✨ 잔여 예산</div>
+        <div class="banner-amount" id="dash-remaining">0원</div>
+        <div class="banner-sub" id="dash-banner-sub">수입 0원 − 지출 0원</div>
+      </div>
+
+      <div class="dash-ledger-grid">
+        <div class="dash-ledger-box green">
+          <div class="dash-ledger-label">📒 수입</div>
+          <div class="dash-ledger-val" id="dash-led-income">0원</div>
+        </div>
+        <div class="dash-ledger-box red">
+          <div class="dash-ledger-label">📒 지출</div>
+          <div class="dash-ledger-val" id="dash-led-expense">0원</div>
+        </div>
+        <div class="dash-ledger-box blue">
+          <div class="dash-ledger-label">📒 잔액</div>
+          <div class="dash-ledger-val" id="dash-led-balance">0원</div>
+        </div>
+        <div class="dash-ledger-box purple">
+          <div class="dash-ledger-label">📒 건수</div>
+          <div class="dash-ledger-val" id="dash-led-count">0건</div>
+        </div>
+      </div>
+
+      <div class="dash-sr-card">
+        <div class="dash-sr-left">
+          <div class="dash-sr-label">💰 이번 달 저축률</div>
+          <div class="dash-sr-detail" id="dash-sr-detail">저축 0원 / 수입 0원</div>
+        </div>
+        <div class="dash-sr-right">
+          <div class="dash-sr-pct" id="dash-sr-pct">0%</div>
+          <div class="dash-sr-track"><div class="dash-sr-fill" id="dash-sr-fill" style="width:0%"></div></div>
+        </div>
+      </div>
+
+      <div class="section-title">이번 달 수입 / 지출</div>
+      <div class="dash-cards">
+        <div class="dash-row" onclick="App.toggleDashSection('income')">
+          <div class="dash-row-left"><span class="dash-icon">💰</span><span>수입</span></div>
+          <div class="dash-row-right">
+            <span class="dash-value green" id="dash-income-total">0원</span>
+            <span class="expand-arrow" id="dash-income-arrow">∨</span>
+          </div>
+        </div>
+        <div class="dash-expand" id="dash-income-expand"></div>
+        <div class="dash-row" onclick="App.toggleDashSection('fixed')">
+          <div class="dash-row-left"><span class="dash-icon">🏠</span><span>고정 지출</span></div>
+          <div class="dash-row-right">
+            <span class="dash-value red" id="dash-fixed-total">0원</span>
+            <span class="expand-arrow" id="dash-fixed-arrow">∨</span>
+          </div>
+        </div>
+        <div class="dash-expand" id="dash-fixed-expand"></div>
+        <div class="dash-row" onclick="App.toggleDashSection('variable')">
+          <div class="dash-row-left"><span class="dash-icon">🛒</span><span>변동 지출</span></div>
+          <div class="dash-row-right">
+            <span class="dash-value orange" id="dash-variable-total">0원</span>
+            <span class="expand-arrow" id="dash-variable-arrow">∨</span>
+          </div>
+        </div>
+        <div class="dash-expand" id="dash-variable-expand"></div>
+      </div>
+
+      <div class="section-title" style="margin-top:24px;">자산 현황</div>
+      <div class="dash-cards">
+        <div class="dash-row" onclick="App.toggleDashSection('asset')">
+          <div class="dash-row-left"><span class="dash-icon">🏦</span><span>총 자산</span></div>
+          <div class="dash-row-right">
+            <span class="dash-value purple" id="dash-asset-total">0원</span>
+            <span class="expand-arrow" id="dash-asset-arrow">∨</span>
+          </div>
+        </div>
+        <div class="dash-expand" id="dash-asset-expand"></div>
+        <div class="dash-row" onclick="App.toggleDashSection('stock')">
+          <div class="dash-row-left"><span class="dash-icon">📈</span><span>주식 평가액</span></div>
+          <div class="dash-row-right">
+            <span class="dash-value teal" id="dash-stock-total">0원</span>
+            <span class="expand-arrow" id="dash-stock-arrow">∨</span>
+          </div>
+        </div>
+        <div class="dash-expand" id="dash-stock-expand"></div>
+      </div>
+    </section>
+
+    <!-- ===== INCOME / EXPENSE ===== -->
+    <section class="tab-content" id="tab-income">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">수입 / 지출 💰</h1>
+          <p class="page-sub">수입과 지출을 한눈에 확인하세요 💵</p>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <button class="default-set-btn" onclick="App.openDefaultMode()" title="매달 반복 항목을 기본값으로 저장합니다">⚙ 기본값 설정</button>
+          <div class="month-nav">
+            <button class="month-btn" onclick="App.changeMonth(-1,'income')">‹</button>
+            <span class="month-label" id="income-month-label"></span>
+            <button class="month-btn" onclick="App.changeMonth(1,'income')">›</button>
+          </div>
+        </div>
+      </div>
+      <!-- 기본값 설정 모드 배너 -->
+      <div id="default-mode-banner" style="display:none;flex-direction:column;gap:8px;background:#FFF8E7;border:1px solid #FFD54F;border-radius:10px;padding:12px 14px;margin-bottom:12px;font-size:13px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+          <span style="color:#7B5E00;">☑️ 항목을 체크한 뒤 <strong>저장</strong> — 이후 달에 기본 반영 / <strong>삭제</strong> — 이후 달에서 제거</span>
+          <div style="display:flex;gap:6px;flex-shrink:0;">
+            <button onclick="App.cancelDefaultMode()" style="padding:5px 12px;border-radius:8px;border:1px solid var(--border);background:var(--white);font-size:12px;cursor:pointer;">취소</button>
+            <button onclick="App.deleteDefaultItems()" style="padding:5px 12px;border-radius:8px;border:none;background:#FFE0E0;color:#C0392B;font-weight:700;font-size:12px;cursor:pointer;">🗑 삭제</button>
+            <button onclick="App.saveDefaultItems()" style="padding:5px 12px;border-radius:8px;border:none;background:#FFD54F;color:#7B5E00;font-weight:700;font-size:12px;cursor:pointer;">✓ 저장</button>
+          </div>
+        </div>
+        <div style="font-size:11.5px;color:#9B7D00;background:#FFFDE7;border-radius:6px;padding:6px 10px;line-height:1.6;">
+          ↕️ <strong>항목을 드래그</strong>해서 순서를 바꿀 수 있습니다 — 저장 시 이후 달에도 같은 순서로 반영됩니다.<br>
+          💡 <strong>저장</strong>: 체크한 항목이 기본값으로 등록되어 이후 모든 달에 자동으로 추가·반영됩니다.<br>
+          💡 <strong>삭제</strong>: 체크한 항목이 기본값과 이후 모든 달에서 제거됩니다.
+        </div>
+      </div>
+
+      <div class="income-expense-grid" style="margin-bottom:20px;">
+        <div class="income-left-col">
+          <div class="card income-card">
+            <div class="card-header-row">
+              <div class="card-title-group">
+                <span>💰 수입</span>
+                <span class="card-total green" id="income-total">0원</span>
+              </div>
+              <button class="add-btn" onclick="App.openIncomeModal()">+ 추가</button>
+            </div>
+            <div id="income-list" class="item-list"></div>
+          </div>
+          <!-- 💰 자금 분배 계산기 -->
+          <div class="card fund-calc-card" id="fund-calc-card">
+            <div class="card-header-row">
+              <div class="card-title-group"><span>💰 자금 분배 계산기</span></div>
+              <button class="add-btn" onclick="App.resetFundCalc()" style="background:#FFF0F0;color:var(--red);">초기화</button>
+            </div>
+            <div class="fc-amount-section">
+              <div class="fc-amount-label">
+                현재 보유 금액
+                <span id="fc-asset-linked-badge" class="fc-asset-link-badge" style="display:none;">🔗 총 자산 연동중</span>
+              </div>
+              <div class="fc-amount-row">
+                <input type="text" inputmode="numeric" id="fc-amount-input" class="fc-amount-input" placeholder="0"
+                  oninput="App.numInputFmt(this);App.previewFundAmount(this.value)"
+                  onchange="App.setFundAmount(this.value)"
+                  onkeydown="if(event.key==='Enter')App.setFundAmount(this.value)"/>
+                <span class="fc-amount-unit">원</span>
+                <button class="add-btn" onclick="App.toggleAssetSelector()" style="white-space:nowrap;flex-shrink:0;">🏦 자산</button>
+              </div>
+              <div id="fc-linked-time" class="fc-linked-time" style="display:none;"></div>
+              <button id="fc-asset-link-btn" class="add-btn fc-link-btn-active" style="display:none;margin-top:6px;" onclick="App.toggleAssetTotalLink(false)">🔓 연동 해제</button>
+              <div id="fc-amount-display" class="fc-amount-display"></div>
+            </div>
+            <div id="fc-asset-selector" class="fc-asset-selector" style="display:none;"></div>
+            <div id="fc-items-list" class="fc-items-list"></div>
+            <button class="fc-add-btn" onclick="App.addFundItem()">+ 항목 추가</button>
+            <div class="fc-summary">
+              <div class="fc-summary-row">
+                <span>총 사용 예정</span>
+                <span id="fc-total-used" style="font-weight:800;color:var(--orange);">0원</span>
+              </div>
+              <div class="fc-summary-row fc-summary-remaining">
+                <span>남은 금액</span>
+                <div style="display:flex;align-items:center;gap:6px;">
+                  <span id="fc-over-badge" class="fc-over-badge" style="display:none;">예산 초과</span>
+                  <span id="fc-remaining-val" style="font-weight:800;color:var(--green);">0원</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card budget-cat-card">
+          <div class="card-header-row">
+            <div class="card-title-group">
+              <span>📊 예산 현황</span>
+            </div>
+            <button class="add-btn" onclick="App.openBudgetModal()">+ 항목 추가</button>
+          </div>
+          <div id="budget-cat-list" class="budget-cat-list-wrap"></div>
+          <div id="budget-cat-footer" class="budget-cat-footer-wrap"></div>
+        </div>
+      </div>
+
+      <div class="income-expense-grid">
+        <div class="card fixed-card">
+          <div class="card-header-row">
+            <div class="card-title-group">
+              <span>🏠 고정 지출</span>
+              <span class="card-total red" id="fixed-total">0원</span>
+            </div>
+            <button class="add-btn" onclick="App.openFixedModal()">+ 추가</button>
+          </div>
+          <div id="fixed-list" class="item-list"></div>
+        </div>
+        <div class="card variable-card">
+          <div class="card-header-row">
+            <div class="card-title-group">
+              <span>🛒 변동 지출</span>
+              <span class="card-total orange" id="variable-total">0원</span>
+            </div>
+            <button class="add-btn" onclick="App.openVariableModal()">+ 추가</button>
+          </div>
+          <div id="variable-list" class="item-list"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== CREDIT CARD + INSTALLMENT ===== -->
+    <section class="tab-content" id="tab-credit">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">신용카드 💳</h1>
+          <p class="page-sub">대금 관리 · 할부 계산기</p>
+        </div>
+        <div class="header-right-group">
+          <div class="month-nav">
+            <button class="month-btn" onclick="App.changeMonth(-1,'credit')">‹</button>
+            <span class="month-label" id="credit-month-label"></span>
+            <button class="month-btn" onclick="App.changeMonth(1,'credit')">›</button>
+          </div>
+          <button class="add-btn primary" onclick="App.openCreditModal()">+ 대금 추가</button>
+          <button class="add-btn primary" id="credit-bulk-pay-btn" onclick="App.markAllCreditPaidThisMonth()" style="display:none;">✅ 이번 달 모두 결제 완료</button>
+        </div>
+      </div>
+      <div class="credit-banner">
+        <div class="credit-banner-sub" id="credit-month-text">납부액</div>
+        <div class="credit-banner-amount" id="credit-month-total">0원</div>
+        <div class="credit-note">※ 신용카드 대금은 지출 합계에 포함되지 않습니다 (기록 전용)</div>
+      </div>
+      <div id="credit-list" class="credit-list"></div>
+
+      <!-- ===== INSTALLMENT CALCULATOR (merged) ===== -->
+      <div class="credit-section-divider">
+        <span>🧮 할부 계산기</span>
+        <div class="card-settings-toggle" onclick="App.toggleCardSettings()">⚙️ 카드 설정 <span id="card-settings-arrow">∨</span></div>
+      </div>
+      <div class="card-settings-panel" id="card-settings-panel" style="display:none;">
+        <div class="card" style="margin-bottom:20px;">
+          <div class="card-header-row">
+            <span class="card-title-group">⚙️ 카드 이율 설정</span>
+            <button class="add-btn" onclick="App.addCardSetting()">+ 카드 추가</button>
+          </div>
+          <div id="card-settings-list"></div>
+        </div>
+      </div>
+      <div class="installment-grid">
+        <div class="card">
+          <div class="inst-section-title">입력</div>
+          <div class="form-group"><label>원금 (원)</label><input type="number" id="inst-principal" class="form-input" placeholder="1,600,000" value="1600000" oninput="App.calcInstallment()"/></div>
+          <div class="form-row">
+            <div class="form-group"><label>카드 선택</label><select id="inst-card" class="form-input" onchange="App.calcInstallment()"></select></div>
+            <div class="form-group"><label>할부 개월</label><input type="number" id="inst-months" class="form-input" placeholder="12" value="12" min="2" max="36" oninput="App.calcInstallment()"/></div>
+          </div>
+          <div class="form-group"><label>연이율 (%)</label><input type="number" id="inst-rate" class="form-input" placeholder="자동 적용" step="0.1" oninput="App.calcInstallment()"/></div>
+          <div class="form-group"><label>이용 일수</label><input type="number" id="inst-days" class="form-input" placeholder="30" value="30" oninput="App.calcInstallment()"/></div>
+        </div>
+        <div class="card">
+          <div class="inst-section-title">계산 결과</div>
+          <div class="result-row"><span>원금</span><span id="res-principal">0원</span></div>
+          <div class="result-row red-val"><span>총 이자</span><span id="res-interest">0원</span></div>
+          <div class="result-row"><span>월 원금 상환액</span><span id="res-monthly-principal">0원</span></div>
+          <div class="result-row"><span>월 납부 예상액</span><span id="res-monthly-total">0원</span></div>
+          <div class="result-highlight">
+            <div class="result-highlight-label">총 상환 금액</div>
+            <div class="result-highlight-amount" id="res-total">0원</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== ASSETS ===== -->
+    <section class="tab-content" id="tab-assets">
+      <div class="page-header">
+        <div><h1 class="page-title">자산 목록 🏦</h1><p class="page-sub">내 모든 자산을 한눈에 🏦</p></div>
+      </div>
+      <div class="asset-summary-grid">
+        <div class="asset-summary-card blue-grad">
+          <div class="asset-sum-label">🏦 총 자산</div>
+          <div class="asset-sum-amount" id="asset-total-display">0원</div>
+          <div class="asset-sum-sub" id="asset-count-display">0개 항목</div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:20px;">
+        <div class="card-header-row">
+          <span class="card-title-group">🏦 자산 목록</span>
+          <button class="add-btn" onclick="App.openAssetModal()">+ 추가</button>
+        </div>
+        <div id="asset-list" class="asset-list-items"></div>
+      </div>
+      <!-- 📈 주식 포트폴리오 (자산 탭 통합) -->
+      <div class="card" id="asset-stocks-card" style="margin-top:20px;border-top:4px solid #00CEC9;">
+        <div class="card-header-row">
+          <div class="card-title-group">
+            <span>📈 주식 포트폴리오</span>
+            <span class="card-total" id="asset-stock-total-display" style="color:#00CEC9;">0원</span>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+<button class="stock-refresh-btn" id="asset-stock-refresh-btn" onclick="App.fetchStockPrices()">🔄 새로고침</button>
+            <button class="add-btn primary" onclick="App.openStockModal()">+ 종목 추가</button>
+          </div>
+        </div>
+        <div id="asset-stock-summary" class="asset-stock-summary"></div>
+        <div id="asset-stock-list" class="asset-stock-list"></div>
+        <div id="asset-stock-refresh-status" style="font-size:12px;color:var(--text-sub);margin-top:8px;text-align:right;"></div>
+      </div>
+    </section>
+
+    <!-- ===== STOCKS (자산 탭에 통합, 탭은 숨김) ===== -->
+    <section class="tab-content" id="tab-stocks" style="display:none!important;">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">주식 포트폴리오 📈</h1>
+          <p class="page-sub">보유 종목의 평가액과 수익률을 확인하세요</p>
+        </div>
+        <div class="stock-header-row">
+          <button class="stock-refresh-btn" id="stock-refresh-btn" onclick="App.fetchStockPrices()">🔄 현재가 새로고침</button>
+          <button class="add-btn primary" onclick="App.openStockModal()">+ 종목 추가</button>
+        </div>
+      </div>
+      <div class="stock-summary-bar">
+        <div class="stock-sum-item">
+          <div class="stock-sum-label">총 평가금액</div>
+          <div class="stock-sum-val teal" id="stock-total-val">0원</div>
+        </div>
+        <div class="stock-sum-item">
+          <div class="stock-sum-label">총 수익</div>
+          <div class="stock-sum-val" id="stock-total-profit">0원</div>
+        </div>
+        <div class="stock-sum-item">
+          <div class="stock-sum-label">수익률</div>
+          <div class="stock-sum-val" id="stock-total-rate">0.00%</div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:20px;padding:0;overflow:hidden;">
+        <table class="stock-table">
+          <thead>
+            <tr>
+              <th>종목명 / 섹터</th>
+              <th>매수 단가</th>
+              <th>현재가</th>
+              <th>수량</th>
+              <th>평가금액</th>
+              <th>수익률</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="stock-tbody"></tbody>
+        </table>
+      </div>
+      <div id="stock-refresh-status" style="font-size:12px;color:var(--text-sub);margin-top:8px;text-align:right;"></div>
+    </section>
+
+    <!-- ===== CONSUMPTION CALENDAR ===== -->
+    <section class="tab-content" id="tab-calendar">
+      <div class="page-header">
+        <div><h1 class="page-title">소비 캘린더 🗓️</h1><p class="page-sub">1년 치 큰 지출 일정을 한눈에 보세요 📅</p></div>
+        <div class="month-nav">
+          <button class="month-btn" onclick="App.changeCalYear(-1)">‹</button>
+          <span class="month-label" id="cal-year-label">2026년</span>
+          <button class="month-btn" onclick="App.changeCalYear(1)">›</button>
+        </div>
+      </div>
+      <div class="cal-year-grid" id="cal-year-grid"></div>
+      <div class="savings-section-wrapper">
+        <div class="savings-section-header">
+          <div>
+            <span class="savings-section-title">🎯 저축 목표</span>
+            <span class="savings-section-sub" id="savings-overall-sub">달성률 0%</span>
+          </div>
+          <button class="savings-add-main-btn" onclick="App.openSavingsModal()">+ 목표 추가</button>
+        </div>
+        <div class="savings-overall-bar-wrap">
+          <div class="savings-overall-labels">
+            <span id="savings-overall-saved">저축 0원</span>
+            <span id="savings-overall-target">목표 0원</span>
+          </div>
+          <div class="savings-overall-track">
+            <div class="savings-overall-fill" id="savings-overall-fill" style="width:0%"></div>
+          </div>
+        </div>
+        <div class="savings-goals-container" id="savings-goals-container"></div>
+      </div>
+    </section>
+
+    <!-- ===== FOOD CALENDAR ===== -->
+    <section class="tab-content" id="tab-food">
+      <div class="page-header">
+        <div><h1 class="page-title">식비 캘린더 🍱</h1><p class="page-sub">날마다 식비를 기록하세요 — 예산 현황 식비에 연동됩니다 🥗</p></div>
+        <div class="month-nav">
+          <button class="month-btn" onclick="App.changeMonth(-1,'food')">‹</button>
+          <span class="month-label" id="food-month-label"></span>
+          <button class="month-btn" onclick="App.changeMonth(1,'food')">›</button>
+        </div>
+      </div>
+      <div class="food-summary-bar">
+        <div>
+          <div class="food-sum-label">이번 달 식비 합계</div>
+          <div class="food-sum-amount" id="food-total-display">0원</div>
+        </div>
+        <div class="food-sum-right">
+          <div class="food-reflect-label">📊 예산현황 식비에 연동</div>
+          <div class="food-reflect-current">현재 식비: <span id="food-reflect-amount" style="font-weight:800;color:var(--green);">0원</span></div>
+          <label class="food-direct-label">
+            <input type="checkbox" id="food-direct-check" onchange="App.toggleFoodDirect(this.checked)"/>
+            <span>직접 설정</span>
+          </label>
+          <div id="food-direct-input-wrap" style="display:none;margin-top:8px;">
+            <input type="text" inputmode="numeric" id="food-direct-input" class="inline-input" placeholder="직접 입력 (원)"
+              oninput="App.numInputFmt(this)"
+              onchange="App.saveFoodDirect(this.value)"
+              onkeydown="if(event.key==='Enter'){App.saveFoodDirect(this.value);this.blur();}"/>
+          </div>
+        </div>
+      </div>
+      <div class="food-calendar" id="food-calendar"></div>
+      <!-- Inline edit panel appears here dynamically -->
+    </section>
+
+    <!-- ===== LEDGER ===== -->
+    <section class="tab-content" id="tab-ledger">
+      <div class="page-header">
+        <div><h1 class="page-title">가계부 📒</h1><p class="page-sub">날마다 수입·지출을 기록하세요</p></div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <button class="ledger-import-btn" onclick="App.toggleImportPanel()">📥 가져오기</button>
+          <button class="close-month-btn" onclick="App.openCloseMonthModal()">📋 월 마감</button>
+          <div class="month-nav">
+            <button class="month-btn" onclick="App.changeMonth(-1,'ledger')">‹</button>
+            <span class="month-label" id="ledger-month-label"></span>
+            <button class="month-btn" onclick="App.changeMonth(1,'ledger')">›</button>
+          </div>
+        </div>
+      </div>
+      <div class="ledger-closed-banner" id="ledger-closed-banner" style="display:none;"></div>
+      <!-- Lcat + Auto 2-column bar -->
+      <div class="lcat-auto-split-bar">
+        <div class="lcat-auto-split-left" onclick="App.toggleLcatPanel()">
+          ⚙️ 카테고리 관리
+          <span id="lcat-panel-arrow" style="font-size:11px;margin-left:4px;">∨</span>
+        </div>
+        <div class="lcat-auto-split-right" onclick="App.toggleLedgerAutoPanel()">
+          ⚡ 자동화
+          <span id="ledger-auto-arrow" style="font-size:11px;margin-left:4px;">∨</span>
+        </div>
+      </div>
+      <div class="lcat-panel-wrap" id="lcat-panel" style="display:none;"></div>
+      <!-- Ledger auto panel -->
+      <div id="ledger-auto-panel" style="display:none;">
+        <div class="ledger-auto-add-row">
+          <select id="la-type" class="lq-input" style="flex:0 0 68px;">
+            <option value="expense">지출</option>
+            <option value="income">수입</option>
+          </select>
+          <input type="date" id="la-start-date" class="lq-input" style="flex:0 0 140px;"/>
+          <select id="la-cat-sel" class="lq-input" style="flex:1;"></select>
+          <input type="text" id="la-memo" class="lq-input" style="flex:2;" placeholder="메모 #태그"/>
+          <input type="text" inputmode="numeric" id="la-amount" class="lq-input" style="flex:1;" placeholder="금액" oninput="App.numInputFmt(this)"/>
+          <button class="lq-add-btn" onclick="App.addAutoInline()">추가</button>
+        </div>
+        <div id="ledger-auto-list"></div>
+      </div>
+      <!-- Import panel -->
+      <div class="ledger-import-panel" id="ledger-import-panel" style="display:none;"></div>
+      <div class="ledger-quick-add">
+        <div class="ledger-quick-title">⚡ 빠른 입력</div>
+        <div class="ledger-quick-form">
+          <select id="lq-type" class="lq-input">
+            <option value="expense">지출</option>
+            <option value="income">수입</option>
+          </select>
+          <input type="date" id="lq-date" class="lq-input lq-date"/>
+          <select id="lq-category" class="lq-input">
+            <option value="">불러오는 중...</option>
+          </select>
+          <div class="lq-memo-wrap">
+            <input type="text" id="lq-memo" class="lq-input lq-memo" placeholder="메모 #태그입력"
+              oninput="App.onMemoInput(this)"
+              onkeydown="App.onMemoKeydown(event)"
+              onblur="App.hideMemoDropdown(200)"/>
+            <div id="lq-tag-dropdown" class="lq-tag-dropdown" style="display:none;"></div>
+          </div>
+          <input type="text" inputmode="numeric" id="lq-amount" class="lq-input lq-amount" placeholder="금액"
+            oninput="App.numInputFmt(this)"
+            onkeydown="if(event.key==='Enter')App.addLedgerEntry()"/>
+          <button class="lq-add-btn" onclick="App.addLedgerEntry()">추가</button>
+        </div>
+      </div>
+      <div class="ledger-filter-bar" id="ledger-filter-bar"></div>
+      <div class="ledger-tag-filter-bar" id="ledger-tag-filter-bar" style="display:none;"></div>
+      <div id="ledger-list"></div>
+    </section>
+
+
+  </main>
+</div>
+
+<!-- ===== MODALS ===== -->
+<!-- Data Delete Modal -->
+<div class="modal" id="modal-delete" style="max-width:460px;max-height:80vh;overflow-y:auto;">
+  <div class="modal-header" style="position:sticky;top:0;background:var(--white);z-index:1;">
+    🗑️ 월별 데이터 삭제
+  </div>
+  <div style="font-size:12px;color:var(--text-sub);margin-bottom:12px;padding:0 2px;">
+    삭제할 달을 선택하세요. 해당 달의 수입/지출·식비·가계부 데이터만 삭제됩니다.<br>
+    <span style="color:var(--red);font-weight:600;">⚠️ 복구 불가 · 자산/주식/신용카드는 영향 없음</span>
+  </div>
+  <div id="delete-month-list" class="delete-month-list"></div>
+  <div class="modal-actions" style="position:sticky;bottom:0;background:var(--white);">
+    <button class="btn-cancel" onclick="App.closeModal()">닫기</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-overlay" onclick="App.closeModal()"></div>
+
+<!-- Income Modal -->
+<div class="modal" id="modal-income">
+  <div class="modal-header">💰 수입 <span id="modal-income-edit-label">추가</span></div>
+  <input type="hidden" id="modal-income-id"/>
+  <div class="form-group"><label>항목명</label><input type="text" id="mi-name" class="form-input" placeholder="월급"/></div>
+  <div class="form-group"><label>카테고리</label><input type="text" id="mi-cat" class="form-input" placeholder="급여"/></div>
+  <div class="form-group"><label>금액 (원)</label><input type="text" inputmode="numeric" id="mi-amount" class="form-input" placeholder="2,197,223" oninput="App.numInputFmt(this)"/></div>
+  <div class="modal-actions">
+    <button class="btn-cancel" onclick="App.closeModal()">취소</button>
+    <button class="btn-save" onclick="App.saveIncome()">저장</button>
+  </div>
+</div>
+
+<!-- Fixed Modal -->
+<div class="modal" id="modal-fixed">
+  <div class="modal-header">🏠 고정 지출 <span id="modal-fixed-edit-label">추가</span></div>
+  <input type="hidden" id="modal-fixed-id"/>
+  <div class="form-group"><label>항목명</label><input type="text" id="mf-name" class="form-input" placeholder="월세"/></div>
+  <div class="form-group"><label>카테고리</label><input type="text" id="mf-cat" class="form-input" placeholder="주거"/></div>
+  <div class="form-group"><label>금액 (원)</label><input type="text" inputmode="numeric" id="mf-amount" class="form-input" placeholder="460,000" oninput="App.numInputFmt(this)"/></div>
+  <div class="modal-actions">
+    <button class="btn-cancel" onclick="App.closeModal()">취소</button>
+    <button class="btn-save" onclick="App.saveFixed()">저장</button>
+  </div>
+</div>
+
+<!-- Variable Modal -->
+<div class="modal" id="modal-variable">
+  <div class="modal-header">🛒 변동 지출 <span id="modal-variable-edit-label">추가</span></div>
+  <input type="hidden" id="modal-variable-id"/>
+  <div class="form-group"><label>항목명</label><input type="text" id="mv-name" class="form-input" placeholder="외식"/></div>
+  <div class="form-group"><label>카테고리</label><input type="text" id="mv-cat" class="form-input" placeholder="식비"/></div>
+  <div class="form-group"><label>금액 (원)</label><input type="text" inputmode="numeric" id="mv-amount" class="form-input" placeholder="50,000" oninput="App.numInputFmt(this)"/></div>
+  <div class="modal-actions">
+    <button class="btn-cancel" onclick="App.closeModal()">취소</button>
+    <button class="btn-save" onclick="App.saveVariable()">저장</button>
+  </div>
+</div>
+
+<!-- Credit Modal -->
+<div class="modal" id="modal-credit">
+  <div class="modal-header">💳 신용카드 대금 <span id="mc-edit-label">추가</span></div>
+  <input type="hidden" id="mc-edit-id"/>
+  <div class="form-group"><label>카드 선택</label><select id="mc-card" class="form-input"></select></div>
+  <div class="form-group"><label>항목명</label><input type="text" id="mc-item" class="form-input" placeholder="쿠팡"/></div>
+  <div class="form-group"><label>총 금액 (원)</label><input type="text" inputmode="numeric" id="mc-amount" class="form-input" placeholder="300,000" oninput="App.numInputFmt(this)"/></div>
+  <div class="form-group"><label>할부 개월 수</label><input type="number" id="mc-months" class="form-input" placeholder="1" min="1"/></div>
+  <div class="form-group">
+    <label>시작 월 / 결제일</label>
+    <div class="form-row">
+      <input type="number" id="mc-start-year" class="form-input" placeholder="2026" value="2026"/>
+      <input type="number" id="mc-start-month" class="form-input" placeholder="5" value="5" min="1" max="12"/>
+      <input type="number" id="mc-start-day" class="form-input" placeholder="일" min="1" max="28" style="max-width:75px;"/>
+    </div>
+  </div>
+  <div class="modal-actions">
+    <button class="btn-cancel" onclick="App.closeModal()">취소</button>
+    <button class="btn-save" onclick="App.saveCredit()">저장</button>
+  </div>
+</div>
+
+<!-- Ledger Edit Modal -->
+<div class="modal" id="modal-ledger-edit">
+  <div class="modal-header">📝 가계부 수정</div>
+  <input type="hidden" id="mle-key"/>
+  <input type="hidden" id="mle-id"/>
+  <div class="form-group">
+    <label>유형</label>
+    <select id="mle-type" class="form-input" onchange="App.onLedgerEditTypeChange()">
+      <option value="expense">지출</option>
+      <option value="income">수입</option>
+    </select>
+  </div>
+  <div class="form-group"><label>날짜</label><input type="date" id="mle-date" class="form-input"/></div>
+  <div class="form-group"><label>분류</label><select id="mle-category" class="form-input"></select></div>
+  <div class="form-group"><label>내용 (메모 + #태그)</label><input type="text" id="mle-memo" class="form-input" placeholder="커피 #카페"/></div>
+  <div class="form-group"><label>금액 (원)</label><input type="text" inputmode="numeric" id="mle-amount" class="form-input" placeholder="15,000" oninput="App.numInputFmt(this)"/></div>
+  <div class="modal-actions">
+    <button class="btn-cancel" onclick="App.closeModal()">취소</button>
+    <button class="btn-save" onclick="App.saveLedgerEdit()">저장</button>
+  </div>
+</div>
+
+<!-- Asset Modal -->
+<div class="modal" id="modal-asset">
+  <div class="modal-header">🏦 자산 <span id="modal-asset-edit-label">추가</span></div>
+  <input type="hidden" id="modal-asset-id"/>
+  <div class="form-group"><label>자산명</label><input type="text" id="ma-name" class="form-input" placeholder="국민은행 통장"/></div>
+  <div class="form-group"><label>금액 (원)</label><input type="text" inputmode="numeric" id="ma-amount" class="form-input" placeholder="1,000,000" oninput="App.numInputFmt(this)"/></div>
+  <div class="form-group">
+    <label>분류</label>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <select id="ma-category" class="form-input" style="flex:1;min-width:120px;"></select>
+      <button type="button" class="add-btn" onclick="App.promptAddAssetCategory()">+ 분류추가</button>
+    </div>
+  </div>
+  <div class="modal-actions">
+    <button class="btn-cancel" onclick="App.closeModal()">취소</button>
+    <button class="btn-save" onclick="App.saveAsset()">저장</button>
+  </div>
+</div>
+
+<!-- Stock Modal -->
+<div class="modal" id="modal-stock">
+  <div class="modal-header">📈 종목 <span id="modal-stock-edit-label">추가</span></div>
+  <input type="hidden" id="modal-stock-id"/>
+  <div class="form-group"><label>종목명</label><input type="text" id="ms-name" class="form-input" placeholder="삼성전자 / Apple / 금현물"/></div>
+  <!-- 종목 유형 선택 -->
+  <div class="form-group">
+    <label>종목 유형</label>
+    <div style="display:flex;gap:12px;margin-top:6px;">
+      <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;">
+        <input type="radio" name="ms-type" value="domestic" checked onchange="App.onStockTypeChange(this.value)"/> 🇰🇷 국내주식
+      </label>
+      <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;">
+        <input type="radio" name="ms-type" value="foreign" onchange="App.onStockTypeChange(this.value)"/> 🌍 해외주식
+      </label>
+      <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;">
+        <input type="radio" name="ms-type" value="gold" onchange="App.onStockTypeChange(this.value)"/> 🥇 금현물
+      </label>
+    </div>
+  </div>
+  <!-- 국내주식 필드 (기본 노출) -->
+  <div id="ms-domestic-fields">
+    <div class="form-row">
+      <div class="form-group"><label>종목 코드</label><input type="text" id="ms-ticker" class="form-input" placeholder="005930"/></div>
+      <div class="form-group"><label>섹터</label><input type="text" id="ms-sector" class="form-input" placeholder="반도체"/></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>매수 단가 (원)</label><input type="text" inputmode="numeric" id="ms-buy" class="form-input" placeholder="156,700" oninput="App.numInputFmt(this)"/></div>
+      <div class="form-group"><label>현재가 (원)</label><input type="text" inputmode="numeric" id="ms-current" class="form-input" placeholder="156,700" oninput="App.numInputFmt(this)"/></div>
+    </div>
+    <div class="form-group"><label>보유 수량</label><input type="number" id="ms-qty" class="form-input" placeholder="1"/></div>
+  </div>
+  <!-- 해외주식 / 금현물 필드 (수동 입력) -->
+  <div id="ms-manual-fields" style="display:none;">
+    <div class="form-row">
+      <div class="form-group" id="ms-ticker-group"><label>종목 코드 (선택)</label><input type="text" id="ms-ticker-manual" class="form-input" placeholder="AAPL" oninput="document.getElementById('ms-ticker').value=this.value"/></div>
+      <div class="form-group"><label>섹터</label><input type="text" id="ms-sector-manual" class="form-input" placeholder="ETF" oninput="document.getElementById('ms-sector').value=this.value"/></div>
+    </div>
+    <div style="font-size:12px;color:var(--text-sub);margin-bottom:8px;padding:8px;background:var(--bg);border-radius:8px;">
+      💡 해외주식·금현물은 매입금액과 평가금액을 직접 입력합니다 (자동 새로고침 없음)
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>매입금액 (원)</label><input type="text" inputmode="numeric" id="ms-buy-amount" class="form-input" placeholder="1,000,000" oninput="App.numInputFmt(this)"/></div>
+      <div class="form-group"><label>평가금액 (원)</label><input type="text" inputmode="numeric" id="ms-current-amount" class="form-input" placeholder="1,200,000" oninput="App.numInputFmt(this)"/></div>
+    </div>
+  </div>
+  <div class="modal-actions">
+    <button class="btn-cancel" onclick="App.closeModal()">취소</button>
+    <button class="btn-save" onclick="App.saveStock()">저장</button>
+  </div>
+</div>
+
+<!-- Budget Category Sync Modal -->
+<div class="modal" id="modal-bcsync">
+  <div class="modal-header">🔗 가계부 카테고리 연동 — <span id="bcsync-cat-name"></span></div>
+  <input type="hidden" id="bcsync-cat-id"/>
+  <div style="font-size:12px;color:var(--text-sub);margin-bottom:10px;line-height:1.6;">선택한 가계부 카테고리의 지출 합계를 이 예산 항목의 실지출로 자동 반영합니다.<br>여러 카테고리를 동시에 선택할 수 있습니다.</div>
+  <div id="bcsync-body" class="bcsync-body"></div>
+  <div class="modal-actions">
+    <button class="btn-cancel" onclick="App.closeModal()">취소</button>
+    <button class="btn-save" onclick="App.saveBudgetCatSync()">저장</button>
+  </div>
+</div>
+
+<!-- Budget Category Modal -->
+<div class="modal" id="modal-budget">
+  <div class="modal-header">📊 예산 카테고리 <span id="modal-budget-edit-label">추가</span></div>
+  <input type="hidden" id="modal-budget-id"/>
+  <div class="form-group"><label>카테고리 이름</label><input type="text" id="mb-name" class="form-input" placeholder="식비, 생필품, 카페..."/></div>
+  <div class="form-group"><label>예산 금액 (원)</label><input type="text" inputmode="numeric" id="mb-budget" class="form-input" placeholder="200,000" oninput="App.numInputFmt(this)"/></div>
+  <div class="savings-classify-row" style="margin-bottom:12px;">
+    <input type="checkbox" id="mb-synced" checked/>
+    <label for="mb-synced" style="cursor:pointer;font-size:13px;">🔗 동기화 — 선택 달 이후 모든 달에 동일 예산 적용 (이전 달 유지)</label>
+  </div>
+  <!-- 식비 카테고리 전용: 캘린더 연동 vs 직접 설정 -->
+  <div id="mb-food-manual-row" style="display:none;flex-direction:column;gap:6px;margin-bottom:12px;padding:10px;background:var(--green-light);border-radius:8px;">
+    <div style="font-size:12px;color:var(--green);font-weight:600;">🍽️ 식비 예산 설정</div>
+    <div style="font-size:12px;color:var(--text-sub);">기본: 식비 캘린더 합계가 예산으로 자동 반영됩니다.</div>
+    <div class="savings-classify-row" style="margin:0;">
+      <input type="checkbox" id="mb-food-budget-manual"/>
+      <label for="mb-food-budget-manual" style="cursor:pointer;font-size:13px;">직접 설정 — 위 예산 금액을 사용합니다 (캘린더 무시)</label>
+    </div>
+  </div>
+  <div class="modal-actions">
+    <button class="btn-cancel" onclick="App.closeModal()">취소</button>
+    <button class="btn-save" onclick="App.saveBudgetCategory()">저장</button>
+  </div>
+</div>
+
+<!-- Calendar Event Modal -->
+<div class="modal" id="modal-cal">
+  <div class="modal-header">🗓️ 일정 <span id="modal-cal-month-label"></span></div>
+  <input type="hidden" id="modal-cal-month"/>
+  <input type="hidden" id="modal-cal-id"/>
+  <div class="cal-food-hint" id="cal-food-hint" style="display:none;background:var(--green-light);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:12px;color:var(--green);"></div>
+  <div class="form-group"><label>내용</label><input type="text" id="mc-event-name" class="form-input" placeholder="서울 여행"/></div>
+  <div class="form-group"><label>금액 (원, 선택)</label><input type="text" inputmode="numeric" id="mc-event-amount" class="form-input" placeholder="50,000" oninput="App.numInputFmt(this)"/></div>
+  <div class="modal-actions">
+    <button class="btn-cancel" onclick="App.closeModal()">취소</button>
+    <button class="btn-save" onclick="App.saveCalEvent()">저장</button>
+  </div>
+</div>
+
+<!-- Savings Modal -->
+<div class="modal" id="modal-savings">
+  <div class="modal-header">🎯 저축 목표 추가</div>
+  <input type="hidden" id="modal-savings-id"/>
+  <div class="form-group"><label>목표명</label><input type="text" id="msg-name" class="form-input" placeholder="호주 여행 적금..."/></div>
+  <div class="form-group"><label>목표 금액 (원)</label><input type="text" inputmode="numeric" id="msg-target" class="form-input" placeholder="5,000,000" oninput="App.numInputFmt(this)"/></div>
+  <div class="form-group"><label>현재 저축액 (원)</label><input type="text" inputmode="numeric" id="msg-saved" class="form-input" placeholder="0" oninput="App.numInputFmt(this)"/></div>
+  <div class="form-group">
+    <label>색상</label>
+    <div class="color-picker-row" style="display:flex;gap:8px;margin-top:6px;">
+      <button class="color-swatch active" data-color="#A29BFE" style="background:#A29BFE;width:28px;height:28px;border-radius:50%;border:3px solid transparent;cursor:pointer;" onclick="App.pickSavingsColor('#A29BFE',this)"></button>
+      <button class="color-swatch" data-color="#43C98A" style="background:#43C98A;width:28px;height:28px;border-radius:50%;border:3px solid transparent;cursor:pointer;" onclick="App.pickSavingsColor('#43C98A',this)"></button>
+      <button class="color-swatch" data-color="#74B9FF" style="background:#74B9FF;width:28px;height:28px;border-radius:50%;border:3px solid transparent;cursor:pointer;" onclick="App.pickSavingsColor('#74B9FF',this)"></button>
+      <button class="color-swatch" data-color="#FD79A8" style="background:#FD79A8;width:28px;height:28px;border-radius:50%;border:3px solid transparent;cursor:pointer;" onclick="App.pickSavingsColor('#FD79A8',this)"></button>
+      <button class="color-swatch" data-color="#FDCB6E" style="background:#FDCB6E;width:28px;height:28px;border-radius:50%;border:3px solid transparent;cursor:pointer;" onclick="App.pickSavingsColor('#FDCB6E',this)"></button>
+      <button class="color-swatch" data-color="#E17055" style="background:#E17055;width:28px;height:28px;border-radius:50%;border:3px solid transparent;cursor:pointer;" onclick="App.pickSavingsColor('#E17055',this)"></button>
+    </div>
+    <input type="hidden" id="msg-color" value="#A29BFE"/>
+  </div>
+  <div class="modal-actions">
+    <button class="btn-cancel" onclick="App.closeModal()">취소</button>
+    <button class="btn-save" onclick="App.saveSavingsGoal()">저장</button>
+  </div>
+</div>
+
+<!-- Auto Modal -->
+<div class="modal" id="modal-auto">
+  <div class="modal-header">⚡ 자동화 <span id="modal-auto-edit-label">추가</span></div>
+  <input type="hidden" id="modal-auto-id"/>
+  <div class="form-group">
+    <label>분류</label>
+    <select id="ma2-type" class="form-input">
+      <option value="expense">지출</option>
+      <option value="income">수입</option>
+    </select>
+  </div>
+  <div class="form-group"><label>날짜 (매월 몇 일)</label><input type="number" id="ma2-day" class="form-input" placeholder="15" min="1" max="31"/></div>
+  <div class="form-group">
+    <label>시작 월 (이 달부터 자동 등록)</label>
+    <div class="form-row">
+      <input type="number" id="ma2-start-year" class="form-input" placeholder="2026"/>
+      <input type="number" id="ma2-start-month" class="form-input" placeholder="1" min="1" max="12"/>
+    </div>
+  </div>
+  <div class="form-group">
+    <label>카테고리</label>
+    <select id="ma2-cat-sel" class="form-input"></select>
+  </div>
+  <div class="form-group"><label>메모 #태그</label><input type="text" id="ma2-memo" class="form-input" placeholder="헬스장 회비 #건강"/></div>
+  <div class="form-group"><label>금액 (원)</label><input type="text" inputmode="numeric" id="ma2-amount" class="form-input" placeholder="80,000" oninput="App.numInputFmt(this)"/></div>
+  <div class="modal-actions">
+    <button class="btn-cancel" onclick="App.closeModal()">취소</button>
+    <button class="btn-save" onclick="App.saveAuto()">저장</button>
+  </div>
+</div>
+
+<!-- Sub Modal -->
+<div class="modal" id="modal-sub">
+  <div class="modal-header">🔄 구독 서비스 추가</div>
+  <input type="hidden" id="modal-sub-id"/>
+  <div class="form-group"><label>서비스명</label><input type="text" id="ms2-name" class="form-input" placeholder="넷플릭스"/></div>
+  <div class="form-group"><label>월 금액 (원)</label><input type="text" inputmode="numeric" id="ms2-amount" class="form-input" placeholder="17,000" oninput="App.numInputFmt(this)"/></div>
+  <div class="form-group"><label>결제일</label><input type="number" id="ms2-day" class="form-input" placeholder="15" min="1" max="31"/></div>
+  <div class="form-group"><label>카테고리</label>
+    <select id="ms2-category" class="form-input">
+      <option>구독/OTT</option><option>음악</option><option>교육</option><option>업무</option><option>기타</option>
+    </select>
+  </div>
+  <div class="modal-actions">
+    <button class="btn-cancel" onclick="App.closeModal()">취소</button>
+    <button class="btn-save" onclick="App.saveSub()">저장</button>
+  </div>
+</div>
+
+<!-- Close Month Modal -->
+<div class="modal modal-wide" id="modal-closeMonth">
+  <div class="modal-header">📋 월 마감 — <span id="cm-month-label"></span></div>
+  <div class="cm-summary" id="cm-summary"></div>
+  <div class="form-group" style="margin-top:14px;"><label>메모 (선택)</label><input type="text" id="cm-note" class="form-input" placeholder="이번 달 소감을 남겨보세요..."/></div>
+  <div class="modal-actions">
+    <button class="btn-cancel" onclick="App.closeModal()">취소</button>
+    <button class="btn-save" onclick="App.closeMonth()">마감 확정</button>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
