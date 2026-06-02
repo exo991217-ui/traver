@@ -6,7 +6,7 @@
   <title>여행을 떠나자</title>
   <link rel="stylesheet" href="style.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
@@ -28,7 +28,7 @@
 
 <main>
 
-  <!-- ====== HOME PAGE ====== -->
+  <!-- ====== HOME ====== -->
   <div id="page-home" class="page active">
     <div class="home-header">
       <div>
@@ -39,33 +39,29 @@
     </div>
 
     <div id="trip-create-panel" class="inline-panel hidden">
-      <div class="inline-panel-title">✈️ 새로운 여행 만들기</div>
+      <div class="inline-panel-title">✈️ 새 여행 만들기</div>
       <div class="form-row">
-        <div class="form-group full">
-          <label>여행 제목 *</label>
-          <input type="text" id="ct-title" placeholder="예: 여름 시드니 여행" />
-        </div>
+        <div class="form-group full"><label>여행 제목 *</label><input type="text" id="ct-title" placeholder="예: 삿포로 여행" /></div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label>나라</label><input type="text" id="ct-country" placeholder="예: 호주" /></div>
-        <div class="form-group"><label>도시</label><input type="text" id="ct-city" placeholder="예: 시드니" /></div>
+        <div class="form-group"><label>나라</label><input type="text" id="ct-country" placeholder="예: 일본" /></div>
+        <div class="form-group"><label>도시</label><input type="text" id="ct-city" placeholder="예: 삿포로" /></div>
       </div>
       <div class="form-row">
         <div class="form-group"><label>시작일</label><input type="date" id="ct-start" /></div>
         <div class="form-group"><label>종료일</label><input type="date" id="ct-end" /></div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label>동행자</label><input type="text" id="ct-companions" placeholder="예: 가족, 친구 2명" /></div>
-        <div class="form-group"><label>커버 이미지 URL</label><input type="url" id="ct-image" placeholder="https://..." /></div>
+        <div class="form-group"><label>동행자</label><input type="text" id="ct-companions" placeholder="예: 혼자, 친구 2명" /></div>
       </div>
-      <div class="inline-panel-actions">
-        <button class="btn btn-ghost" onclick="toggleCreateTrip()">취소</button>
-        <button class="btn btn-primary" onclick="createTrip()">여행 만들기 🎉</button>
+      <div class="panel-actions">
+        <button class="btn btn-ghost btn-sm" onclick="toggleCreateTrip()">취소</button>
+        <button class="btn btn-primary btn-sm" onclick="createTrip()">만들기</button>
       </div>
     </div>
 
-    <div class="category-filter">
-      <button class="chip active" onclick="filterTrips('all',this)">전체 ✨</button>
+    <div class="chip-bar">
+      <button class="chip active" onclick="filterTrips('all',this)">전체</button>
       <button class="chip" onclick="filterTrips('overseas',this)">해외여행 🌍</button>
       <button class="chip" onclick="filterTrips('domestic',this)">국내여행 🏔️</button>
     </div>
@@ -73,23 +69,42 @@
     <div id="trips-container"><div class="spinner"></div></div>
   </div>
 
-  <!-- ====== TRIP DETAIL PAGE ====== -->
+  <!-- ====== TRIP DETAIL ====== -->
   <div id="page-trip" class="page">
     <button class="back-btn" onclick="showPage('home')">← 목록으로</button>
-    <img id="trip-hero-img" class="trip-hero hidden" src="" alt="" />
 
+    <!-- Trip Info (Editable) -->
     <div class="trip-info-card">
-      <h1 class="trip-info-title" id="trip-title-display">-</h1>
+      <div class="trip-info-title-row">
+        <input class="trip-info-title" id="trip-title-input" value="" onblur="saveTripField('title', this.value)" />
+        <span class="edit-hint">클릭해서 수정</span>
+      </div>
       <div class="trip-info-grid">
-        <div class="info-item"><label>📅 여행 기간</label><strong id="trip-dates-display">-</strong></div>
-        <div class="info-item"><label>👥 동행자</label><strong id="trip-companions-display">-</strong></div>
-        <div class="info-item"><label>💰 총 경비</label><strong id="trip-budget-display">0원</strong></div>
-        <div class="info-item"><label>📍 여행지</label><strong id="trip-location-display">-</strong></div>
+        <div class="info-item">
+          <label>📅 시작일</label>
+          <input class="info-editable" type="date" id="trip-start-input" onblur="saveTripField('startDate', this.value)" />
+        </div>
+        <div class="info-item">
+          <label>📅 종료일</label>
+          <input class="info-editable" type="date" id="trip-end-input" onblur="saveTripField('endDate', this.value)" />
+        </div>
+        <div class="info-item">
+          <label>👥 동행자</label>
+          <input class="info-editable" id="trip-companions-input" placeholder="혼자" onblur="saveTripField('companions', this.value)" />
+        </div>
+        <div class="info-item">
+          <label>📍 여행지</label>
+          <input class="info-editable" id="trip-location-input" placeholder="도시, 나라" onblur="saveTripFieldLocation(this.value)" />
+        </div>
+        <div class="info-item">
+          <label>💰 총 경비</label>
+          <strong id="trip-budget-display" style="font-size:0.88rem;font-weight:800;color:var(--pd)">0원</strong>
+        </div>
       </div>
       <div class="currency-row">
         <label>💱 환율</label>
-        <select id="currency-select" onchange="onCurrencyChange(this.value)">
-          <option value="">외화 선택</option>
+        <select id="currency-select" style="width:auto;padding:4px 8px" onchange="onCurrencyChange(this.value)">
+          <option value="">외화 선택 안함</option>
           <option value="JPY">엔화 (JPY)</option>
           <option value="EUR">유로 (EUR)</option>
           <option value="USD">달러 (USD)</option>
@@ -98,100 +113,87 @@
           <option value="VND">동 (VND)</option>
           <option value="AUD">호주달러 (AUD)</option>
         </select>
-        <span class="rate-display" id="rate-display" style="display:none">
+        <span class="rate-display hidden" id="rate-display">
           1<span id="currency-symbol"></span> = <span class="rate-value" id="rate-value-display" onclick="editRate()">-</span>원
         </span>
       </div>
     </div>
 
-    <!-- Detail grid: Reservations + Map -->
+    <!-- Reservations + Map -->
     <div class="detail-grid">
-      <!-- Reservations Card -->
+      <!-- Reservations -->
       <div class="card">
         <div class="card-header">
           <h3>🎫 예약 목록</h3>
-          <div style="display:flex;gap:6px">
+          <div style="display:flex;gap:5px">
             <button class="btn btn-outline btn-sm" onclick="openResForm('항공')">✈ 항공</button>
             <button class="btn btn-outline btn-sm" onclick="openResForm('숙소')">🏨 숙소</button>
             <button class="btn btn-outline btn-sm" onclick="openResForm('기타')">＋ 기타</button>
           </div>
         </div>
-        <div class="card-body">
-          <!-- 항공 Section -->
-          <div class="res-section" id="res-section-항공">
-            <div class="res-section-title" onclick="toggleResSection('항공')">
-              <span>✈️ 항공</span>
-              <span class="collapse-btn" id="res-toggle-항공">▲</span>
+        <div class="card-body" style="padding:10px 14px">
+          <div class="res-section">
+            <div class="res-section-header" onclick="toggleResSection('항공')">
+              <span>✈️ 항공</span><span class="collapse-btn" id="res-toggle-항공">▲</span>
             </div>
             <div class="res-section-body" id="res-body-항공">
               <div id="res-form-항공" class="res-add-form hidden"></div>
-              <div id="res-list-항공"><div class="empty-msg" style="padding:12px 0;font-size:0.8rem">항공 예약 없음</div></div>
+              <div id="res-list-항공"><div class="empty-msg" style="padding:8px 0;font-size:0.78rem">항공 예약 없음</div></div>
             </div>
           </div>
-
-          <!-- 숙소 Section -->
-          <div class="res-section" id="res-section-숙소">
-            <div class="res-section-title" onclick="toggleResSection('숙소')">
-              <span>🏨 숙소</span>
-              <span class="collapse-btn" id="res-toggle-숙소">▲</span>
+          <div class="res-section">
+            <div class="res-section-header" onclick="toggleResSection('숙소')">
+              <span>🏨 숙소</span><span class="collapse-btn" id="res-toggle-숙소">▲</span>
             </div>
             <div class="res-section-body" id="res-body-숙소">
               <div id="res-form-숙소" class="res-add-form hidden"></div>
-              <div id="res-list-숙소"><div class="empty-msg" style="padding:12px 0;font-size:0.8rem">숙소 예약 없음</div></div>
+              <div id="res-list-숙소"><div class="empty-msg" style="padding:8px 0;font-size:0.78rem">숙소 예약 없음</div></div>
             </div>
           </div>
-
-          <!-- 기타 Section -->
-          <div class="res-section" id="res-section-기타">
-            <div class="res-section-title" onclick="toggleResSection('기타')">
-              <span>📋 기타</span>
-              <span class="collapse-btn" id="res-toggle-기타">▲</span>
+          <div class="res-section">
+            <div class="res-section-header" onclick="toggleResSection('기타')">
+              <span>📋 기타</span><span class="collapse-btn" id="res-toggle-기타">▲</span>
             </div>
             <div class="res-section-body" id="res-body-기타">
               <div id="res-form-기타" class="res-add-form hidden"></div>
-              <div id="res-list-기타"><div class="empty-msg" style="padding:12px 0;font-size:0.8rem">기타 예약 없음</div></div>
+              <div id="res-list-기타"><div class="empty-msg" style="padding:8px 0;font-size:0.78rem">기타 예약 없음</div></div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Map Card -->
+      <!-- Map -->
       <div class="card">
         <div class="card-header">
           <h3>🗺️ 지도</h3>
-          <button class="collapse-btn" onclick="toggleMap()">▲ 접기</button>
+          <button class="collapse-btn" id="map-collapse-btn" onclick="toggleMap()">▲ 접기</button>
         </div>
-        <div id="map-section-body" class="card-body">
+        <div id="map-card-body" class="card-body" style="padding:12px 14px">
           <div class="map-link-row">
-            <input type="url" id="map-link-input" placeholder="구글 내 지도 링크를 붙여넣으세요" oninput="onMapLinkInput()" />
+            <input type="url" id="map-link-input" placeholder="구글 내 지도 링크 붙여넣기" />
             <button class="btn btn-outline btn-sm" onclick="applyMapLink()">적용</button>
           </div>
-          <div class="map-frame-wrap" id="map-frame-wrap">
+          <div class="map-frame-wrap">
             <iframe id="map-frame" src="" loading="lazy" allowfullscreen title="지도"></iframe>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Tabs -->
-    <div class="tabs-card">
-      <div class="tab-nav">
-        <button class="tab-btn active" onclick="switchTab('schedule',this)">📅 일정</button>
-        <button class="tab-btn" onclick="switchTab('expenses',this)">💸 지출</button>
-        <button class="tab-btn" onclick="switchTab('tripbucket',this)">⭐ 가고싶은 곳</button>
-      </div>
-
-      <!-- Schedule Tab -->
-      <div id="tab-schedule" class="tab-content active">
-        <div class="tab-toolbar">
+    <!-- 일정 Section -->
+    <div class="section-card">
+      <div class="section-header">
+        <span class="section-title">📅 여행 일정</span>
+        <div class="section-toolbar">
           <div class="view-toggle">
-            <button class="btn btn-outline btn-sm active-view" id="view-table-btn" onclick="setView('table')">목록</button>
+            <button class="btn btn-outline btn-sm view-active" id="view-table-btn" onclick="setView('table')">목록</button>
             <button class="btn btn-outline btn-sm" id="view-time-btn" onclick="setView('timetable')">시간표</button>
           </div>
         </div>
-
+      </div>
+      <div class="section-body">
         <div id="schedule-table-view">
-          <div class="table-wrapper">
+          <div class="table-wrap">
             <table class="data-table">
               <thead>
                 <tr>
@@ -201,21 +203,15 @@
               </thead>
               <tbody id="schedule-tbody"></tbody>
               <tfoot>
-                <tr id="schedule-add-row" class="add-input-row">
-                  <td>
-                    <select id="sch-add-category" style="min-width:75px">
-                      <option value="">분류</option>
-                    </select>
-                  </td>
+                <tr class="add-row">
+                  <td><select id="sch-add-cat" style="min-width:70px"><option value="">분류</option></select></td>
                   <td><input type="date" id="sch-add-date" /></td>
                   <td><input type="time" id="sch-add-time" /></td>
-                  <td><input type="text" id="sch-add-location" placeholder="장소" /></td>
+                  <td><input type="text" id="sch-add-loc" placeholder="장소" /></td>
                   <td><input type="text" id="sch-add-content" placeholder="내용" /></td>
-                  <td><input type="text" id="sch-add-transport" placeholder="교통편" /></td>
+                  <td><input type="text" id="sch-add-trans" placeholder="교통편" /></td>
                   <td><input type="text" id="sch-add-notes" placeholder="비고" /></td>
-                  <td style="white-space:nowrap">
-                    <button class="save-row-btn" onclick="saveScheduleRow()">✚ 추가</button>
-                  </td>
+                  <td><button class="add-btn" onclick="saveScheduleRow()">＋ 추가</button></td>
                 </tr>
               </tfoot>
             </table>
@@ -223,14 +219,19 @@
         </div>
         <div id="schedule-timetable-view" class="hidden"></div>
       </div>
+    </div>
 
-      <!-- Expenses Tab -->
-      <div id="tab-expenses" class="tab-content">
-        <div class="tab-toolbar">
-          <div id="expense-summary-display" class="summary-text">합계 0원</div>
+    <!-- 지출 Section -->
+    <div class="section-card">
+      <div class="section-header">
+        <span class="section-title">💸 지출 내역</span>
+        <div class="summary-row">
+          <span id="expense-summary-display" class="summary-val">합계 0원</span>
+          <span class="hint" id="rate-hint"></span>
         </div>
-
-        <div class="table-wrapper">
+      </div>
+      <div class="section-body">
+        <div class="table-wrap">
           <table class="data-table">
             <thead>
               <tr>
@@ -241,19 +242,13 @@
             </thead>
             <tbody id="expense-tbody"></tbody>
             <tfoot>
-              <tr id="expense-add-row" class="add-input-row">
-                <td>
-                  <select id="exp-add-category" style="min-width:75px">
-                    <option value="">분류</option>
-                  </select>
-                </td>
+              <tr class="add-row">
+                <td><select id="exp-add-cat" style="min-width:70px"><option value="">분류</option></select></td>
                 <td><input type="date" id="exp-add-date" /></td>
                 <td><input type="text" id="exp-add-title" placeholder="제목 *" /></td>
-                <td><input type="number" id="exp-add-krw" placeholder="원화" oninput="autoCalcForeign()" style="min-width:80px;text-align:right" /></td>
-                <td><input type="number" id="exp-add-foreign" placeholder="외화" oninput="autoCalcKrw()" style="min-width:70px;text-align:right" /></td>
-                <td style="white-space:nowrap">
-                  <button class="save-row-btn" onclick="saveExpenseRow()">✚ 추가</button>
-                </td>
+                <td><input type="number" id="exp-add-krw" placeholder="원화" oninput="autoCalcForeign()" style="text-align:right;min-width:75px" /></td>
+                <td><input type="number" id="exp-add-foreign" placeholder="외화" oninput="autoCalcKrw()" style="text-align:right;min-width:65px" /></td>
+                <td><button class="add-btn" onclick="saveExpenseRow()">＋ 추가</button></td>
               </tr>
               <tr>
                 <td colspan="3"><strong>합계</strong></td>
@@ -264,20 +259,20 @@
             </tfoot>
           </table>
         </div>
-        <p class="hint" id="rate-hint" style="margin-top:6px"></p>
       </div>
+    </div>
 
-      <!-- Trip Bucket Tab -->
-      <div id="tab-tripbucket" class="tab-content">
-        <div class="tab-toolbar">
-          <div class="region-filter-row">
-            <span class="filter-label">📍 지역 필터</span>
-            <input type="text" id="trip-bucket-region" placeholder="지역 검색..." style="width:140px" oninput="renderTripBucket()" />
-            <button class="btn btn-ghost btn-sm" onclick="document.getElementById('trip-bucket-region').value='';renderTripBucket()">✕</button>
-          </div>
+    <!-- 가고싶은 곳 Section -->
+    <div class="section-card">
+      <div class="section-header">
+        <span class="section-title">⭐ 가고싶은 곳</span>
+        <div style="display:flex;align-items:center;gap:8px">
+          <input type="text" id="trip-bucket-region" placeholder="지역 검색" style="width:120px;padding:4px 8px;font-size:0.78rem;border-radius:7px;border:1.5px solid var(--border)" oninput="renderTripBucket()" />
           <button class="btn btn-primary btn-sm" onclick="openTripBucketModal()">＋ 추가</button>
         </div>
-        <div id="trip-bucket-board"></div>
+      </div>
+      <div class="section-body" style="padding:10px 14px">
+        <div id="trip-bucket-board" class="kanban-board"></div>
       </div>
     </div>
   </div>
@@ -289,24 +284,28 @@
         <h1 class="page-title">버킷플레이스 ⭐</h1>
         <p class="page-sub">가보고 싶은 장소를 모아두는 곳</p>
       </div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button class="bucket-filter-toggle" id="filter-toggle-btn" onclick="toggleBucketFilter()">
+          <span>🔽</span> 필터
+        </button>
+      </div>
     </div>
 
-    <!-- Filter bar -->
-    <div class="bucket-filter-bar">
+    <div id="bucket-filter-row" class="bucket-filter-row hidden">
       <label>유형</label>
-      <select id="bf-type" onchange="renderBucketList()">
-        <option value="">전체</option>
-      </select>
+      <select id="bf-type" onchange="renderBucketList()"><option value="">전체</option></select>
       <label>나라</label>
-      <input type="text" id="bf-country" placeholder="나라" style="width:90px" oninput="renderBucketList()" />
+      <input type="text" id="bf-country" placeholder="나라" style="width:80px" oninput="renderBucketList()" />
       <label>지역</label>
-      <input type="text" id="bf-region" placeholder="지역" style="width:90px" oninput="renderBucketList()" />
+      <input type="text" id="bf-region" placeholder="지역" style="width:80px" oninput="renderBucketList()" />
       <label>계절</label>
       <select id="bf-season" onchange="renderBucketList()">
         <option value="">전체</option>
         <option>봄</option><option>여름</option><option>가을</option><option>겨울</option><option>연중</option>
       </select>
-      <label><input type="checkbox" id="bf-unvisited" onchange="renderBucketList()" style="width:auto" /> 미방문만</label>
+      <label style="display:flex;align-items:center;gap:4px">
+        <input type="checkbox" id="bf-unvisited" onchange="renderBucketList()" style="width:auto" /> 미방문만
+      </label>
       <button class="btn btn-ghost btn-sm" onclick="resetBucketFilter()">✕ 초기화</button>
     </div>
 
@@ -314,25 +313,17 @@
       <table class="bucket-list-table">
         <thead>
           <tr>
-            <th style="width:28px">✓</th>
-            <th>유형</th>
-            <th>나라</th>
-            <th>지역</th>
-            <th>장소</th>
-            <th>계절</th>
-            <th>비고</th>
-            <th style="width:50px"></th>
+            <th style="width:26px">✓</th>
+            <th>유형</th><th>나라</th><th>지역</th>
+            <th>장소</th><th>계절</th><th>비고</th>
+            <th style="width:44px"></th>
           </tr>
         </thead>
         <tbody id="bucket-list-tbody"></tbody>
         <tfoot>
-          <tr class="bucket-add-row" id="bucket-add-row">
+          <tr class="add-row" id="bucket-add-row">
             <td></td>
-            <td>
-              <select id="ba-type" style="min-width:70px">
-                <option value="">유형</option>
-              </select>
-            </td>
+            <td><select id="ba-type"><option value="">유형</option></select></td>
             <td><input type="text" id="ba-country" placeholder="나라" /></td>
             <td><input type="text" id="ba-region" placeholder="지역" /></td>
             <td><input type="text" id="ba-place" placeholder="장소 *" /></td>
@@ -343,122 +334,89 @@
               </select>
             </td>
             <td><input type="text" id="ba-notes" placeholder="비고" /></td>
-            <td>
-              <button class="save-row-btn" style="background:var(--p);color:#fff;border:none;border-radius:7px;padding:5px 9px;font-size:0.78rem;cursor:pointer;font-family:'Gaegu',cursive;font-weight:700" onclick="saveBucketRow()">✚ 추가</button>
-            </td>
+            <td><button class="add-btn" onclick="saveBucketRow()">＋</button></td>
           </tr>
         </tfoot>
       </table>
     </div>
   </div>
 
-  <!-- ====== SETTINGS PAGE ====== -->
+  <!-- ====== SETTINGS ====== -->
   <div id="page-settings" class="page">
-    <h1 class="page-title">설정 ⚙️</h1>
-    <p class="page-sub">앱을 내 맘대로 꾸며봐요!</p>
+    <h1 class="page-title" style="margin-bottom:18px">설정 ⚙️</h1>
 
-    <!-- 용량 -->
     <div class="settings-card">
-      <h3>💾 데이터 용량</h3>
+      <h3>💾 데이터 현황</h3>
       <div class="storage-bar-wrap">
-        <div class="storage-bar-label">
-          <span>사용 중</span>
-          <span id="storage-usage-text">계산 중...</span>
-        </div>
-        <div class="storage-bar-outer">
-          <div class="storage-bar-inner" id="storage-bar-inner" style="width:0%"></div>
-        </div>
-        <p class="hint" style="margin-top:6px">Firestore 무료 플랜 기준 예상 (읽기 50,000/일, 쓰기 20,000/일)</p>
+        <div class="storage-bar-label"><span>Firestore 문서 수</span><span id="storage-usage-text">계산 중...</span></div>
+        <div class="storage-bar-outer"><div class="storage-bar-inner" id="storage-bar-inner" style="width:0%"></div></div>
+        <p class="hint" style="margin-top:5px">무료 플랜 기준 쓰기 20,000회/일, 읽기 50,000회/일</p>
       </div>
+      <button class="btn btn-outline btn-sm" onclick="seedSampleData()" id="seed-btn">🗾 삿포로 샘플 데이터 가져오기</button>
     </div>
 
-    <!-- 테마 -->
     <div class="settings-card">
       <h3>🎨 테마 색상</h3>
       <div class="theme-options">
-        <button class="theme-btn" data-theme="blue" onclick="setTheme('blue')">
-          <div class="theme-swatch" style="background:#93C5FD"></div><span>파랑</span>
-        </button>
-        <button class="theme-btn" data-theme="pink" onclick="setTheme('pink')">
-          <div class="theme-swatch" style="background:#F9A8D4"></div><span>분홍</span>
-        </button>
-        <button class="theme-btn" data-theme="orange" onclick="setTheme('orange')">
-          <div class="theme-swatch" style="background:#FDBA74"></div><span>주황</span>
-        </button>
-        <button class="theme-btn" data-theme="green" onclick="setTheme('green')">
-          <div class="theme-swatch" style="background:#86EFAC"></div><span>연두</span>
-        </button>
-        <button class="theme-btn" data-theme="purple" onclick="setTheme('purple')">
-          <div class="theme-swatch" style="background:#C4B5FD"></div><span>보라</span>
-        </button>
+        <button class="theme-btn" data-theme="blue" onclick="setTheme('blue')"><div class="theme-swatch" style="background:#93C5FD"></div><span>파랑</span></button>
+        <button class="theme-btn" data-theme="pink" onclick="setTheme('pink')"><div class="theme-swatch" style="background:#F9A8D4"></div><span>분홍</span></button>
+        <button class="theme-btn" data-theme="orange" onclick="setTheme('orange')"><div class="theme-swatch" style="background:#FDBA74"></div><span>주황</span></button>
+        <button class="theme-btn" data-theme="green" onclick="setTheme('green')"><div class="theme-swatch" style="background:#86EFAC"></div><span>연두</span></button>
+        <button class="theme-btn" data-theme="purple" onclick="setTheme('purple')"><div class="theme-swatch" style="background:#C4B5FD"></div><span>보라</span></button>
       </div>
-      <p class="hint" style="margin-top:12px" id="theme-current-label">현재 테마: 주황</p>
+      <p class="hint" style="margin-top:10px" id="theme-current-label">현재 테마: 주황</p>
     </div>
 
-    <!-- 분류 설정 -->
     <div class="settings-card">
       <h3>🏷️ 분류 설정</h3>
-      <p class="hint" style="margin-bottom:16px">여기서 설정한 항목이 입력 폼의 기본값이 됩니다. (기타는 직접 입력 가능)</p>
-
-      <div class="cat-manage-section" id="cat-section-reservation">
-        <div class="cat-manage-title">🎫 예약목록 분류</div>
-        <div class="cat-tags" id="cat-tags-reservation"></div>
-        <div class="cat-add-row">
-          <input type="text" id="cat-input-reservation" placeholder="새 분류 추가..." onkeydown="if(event.key==='Enter')addCategory('reservation')" />
-          <button class="btn btn-primary btn-sm" onclick="addCategory('reservation')">추가</button>
-        </div>
-      </div>
-
-      <div class="cat-manage-section" id="cat-section-schedule" style="margin-top:18px">
+      <p class="hint" style="margin-bottom:14px">설정한 항목이 입력 폼의 분류 선택지에 표시됩니다.</p>
+      <div class="cat-manage-section">
         <div class="cat-manage-title">📅 여행일정 분류</div>
         <div class="cat-tags" id="cat-tags-schedule"></div>
         <div class="cat-add-row">
-          <input type="text" id="cat-input-schedule" placeholder="새 분류 추가..." onkeydown="if(event.key==='Enter')addCategory('schedule')" />
+          <input type="text" id="cat-input-schedule" placeholder="새 분류..." onkeydown="if(event.key==='Enter')addCategory('schedule')" />
           <button class="btn btn-primary btn-sm" onclick="addCategory('schedule')">추가</button>
         </div>
       </div>
-
-      <div class="cat-manage-section" style="margin-top:18px">
+      <div class="cat-manage-section" style="margin-top:14px">
         <div class="cat-manage-title">💸 지출 분류</div>
         <div class="cat-tags" id="cat-tags-expense"></div>
         <div class="cat-add-row">
-          <input type="text" id="cat-input-expense" placeholder="새 분류 추가..." onkeydown="if(event.key==='Enter')addCategory('expense')" />
+          <input type="text" id="cat-input-expense" placeholder="새 분류..." onkeydown="if(event.key==='Enter')addCategory('expense')" />
           <button class="btn btn-primary btn-sm" onclick="addCategory('expense')">추가</button>
         </div>
       </div>
-
-      <div class="cat-manage-section" style="margin-top:18px">
+      <div class="cat-manage-section" style="margin-top:14px">
         <div class="cat-manage-title">⭐ 버킷플레이스 유형</div>
         <div class="cat-tags" id="cat-tags-bucket"></div>
         <div class="cat-add-row">
-          <input type="text" id="cat-input-bucket" placeholder="새 유형 추가..." onkeydown="if(event.key==='Enter')addCategory('bucket')" />
+          <input type="text" id="cat-input-bucket" placeholder="새 유형..." onkeydown="if(event.key==='Enter')addCategory('bucket')" />
           <button class="btn btn-primary btn-sm" onclick="addCategory('bucket')">추가</button>
         </div>
       </div>
     </div>
 
-    <!-- 계정 -->
     <div class="settings-card">
       <h3>👤 계정</h3>
-      <div id="settings-user-info" style="margin-top:12px;font-size:0.9rem;color:var(--text-muted)">로그인 정보 없음</div>
-      <button class="btn btn-outline" style="margin-top:12px" onclick="handleAuth()">로그아웃</button>
+      <div id="settings-user-info" style="font-size:0.85rem;color:var(--text-muted);margin-bottom:10px">로그인 정보 없음</div>
+      <button class="btn btn-outline btn-sm" onclick="handleAuth()">로그아웃</button>
     </div>
   </div>
 
 </main>
 
-<!-- ====== MODAL: 가고싶은 곳 추가 (ONLY MODAL) ====== -->
+<!-- Modal: 가고싶은 곳 -->
 <div id="modal-bucket-trip" class="modal-overlay hidden">
   <div class="modal">
     <div class="modal-header">
       <h2>⭐ 가고싶은 곳 추가</h2>
       <button class="modal-close" onclick="closeModal('modal-bucket-trip')">✕</button>
     </div>
-    <div class="bucket-detail-form">
+    <div style="display:flex;flex-direction:column;gap:0">
       <div class="detail-row required-row">
         <span class="detail-icon">🗺️</span>
         <label>장소명 *</label>
-        <input type="text" id="bk-place" class="detail-input" placeholder="장소 이름을 입력하세요" />
+        <input type="text" id="bk-place" class="detail-input" placeholder="장소 이름" />
       </div>
       <div class="detail-row">
         <span class="detail-icon">🏷️</span>
@@ -468,35 +426,35 @@
       <div class="detail-row">
         <span class="detail-icon">🌍</span>
         <label>나라</label>
-        <input type="text" id="bk-country" class="detail-input" placeholder="비어있음" />
+        <input type="text" id="bk-country" class="detail-input" placeholder="미입력" />
       </div>
       <div class="detail-row">
         <span class="detail-icon">📍</span>
         <label>지역</label>
-        <input type="text" id="bk-region" class="detail-input" placeholder="비어있음" />
+        <input type="text" id="bk-region" class="detail-input" placeholder="미입력" />
       </div>
       <div class="detail-row">
         <span class="detail-icon">📅</span>
         <label>계절</label>
         <select id="bk-season" class="detail-input">
-          <option value="">비어있음</option>
+          <option value="">미입력</option>
           <option>봄</option><option>여름</option><option>가을</option><option>겨울</option><option>연중</option>
         </select>
       </div>
       <div class="detail-row">
         <span class="detail-icon">📝</span>
         <label>비고</label>
-        <input type="text" id="bk-notes" class="detail-input" placeholder="비어있음" />
+        <input type="text" id="bk-notes" class="detail-input" placeholder="미입력" />
       </div>
       <div class="detail-row">
         <span class="detail-icon">✅</span>
         <label>방문완료</label>
-        <input type="checkbox" id="bk-visited" style="width:20px;height:20px;accent-color:var(--pd)" />
+        <input type="checkbox" id="bk-visited" style="width:18px;height:18px;accent-color:var(--pd)" />
       </div>
     </div>
     <div class="form-actions">
-      <button class="btn btn-ghost" onclick="closeModal('modal-bucket-trip')">취소</button>
-      <button class="btn btn-primary" onclick="saveTripBucketItem()">추가하기 ⭐</button>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-bucket-trip')">취소</button>
+      <button class="btn btn-primary btn-sm" onclick="saveTripBucketItem()">추가하기</button>
     </div>
   </div>
 </div>
