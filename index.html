@@ -1,464 +1,421 @@
-<!DOCTYPE html>
-<html lang="ko" class="theme-orange">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>여행을 떠나자</title>
-  <link rel="stylesheet" href="style.css" />
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-</head>
-<body>
+/* ============================================================
+   여행을 떠나자 — style.css (수정본 v3)
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-<header>
-  <a href="#" class="logo" onclick="showPage('home')">✈️ 여행을 떠나자</a>
-  <nav>
-    <a href="#" id="nav-home" class="active" onclick="showPage('home')">내 여행</a>
-    <a href="#" id="nav-bucket" onclick="showPage('bucket')">버킷플레이스</a>
-    <a href="#" id="nav-settings" onclick="showPage('settings')">설정</a>
-  </nav>
-  <div class="header-right">
-    <span id="user-email"></span>
-    <button id="auth-btn" onclick="handleAuth()">로그인</button>
-  </div>
-</header>
+/* ---- Themes ---- */
+.theme-blue   { --p:#93C5FD; --pd:#3B82F6; --pl:#EFF6FF; --pb:#DBEAFE; }
+.theme-pink   { --p:#F9A8D4; --pd:#EC4899; --pl:#FDF2F8; --pb:#FCE7F3; }
+.theme-orange { --p:#FDBA74; --pd:#F97316; --pl:#FFF7ED; --pb:#FFEDD5; }
+.theme-green  { --p:#86EFAC; --pd:#22C55E; --pl:#F0FDF4; --pb:#DCFCE7; }
+.theme-purple { --p:#C4B5FD; --pd:#8B5CF6; --pl:#F5F3FF; --pb:#EDE9FE; }
 
-<main>
+:root {
+  --bg:#f7f4f1;
+  --surface:#ffffff;
+  --surface2:#f5f2ef;
+  --border:#e8e3de;
+  --text:#2d2520;
+  --text-muted:#9c8e85;
+  --radius:14px;
+  --radius-sm:9px;
+  --shadow:0 1px 8px rgba(0,0,0,0.07);
+  --shadow-md:0 4px 18px rgba(0,0,0,0.09);
+}
 
-  <!-- ====== HOME ====== -->
-  <div id="page-home" class="page active">
-    <div class="home-header">
-      <div>
-        <h1 class="page-title">내 여행 🗺️</h1>
-        <p class="page-sub">나만의 여행 기록을 관리해요</p>
-      </div>
-      <button class="btn btn-primary" onclick="toggleCreateTrip()">＋ 새 여행</button>
-    </div>
+body { font-family:'Noto Sans KR',sans-serif; background:var(--bg); color:var(--text); line-height:1.6; font-size:14px; }
 
-    <div id="trip-create-panel" class="inline-panel hidden">
-      <div class="inline-panel-title">✈️ 새 여행 만들기</div>
-      <div class="form-row">
-        <div class="form-group full"><label>여행 제목 *</label><input type="text" id="ct-title" placeholder="예: 삿포로 여행" /></div>
-      </div>
-      <div class="form-row">
-        <div class="form-group"><label>나라</label><input type="text" id="ct-country" placeholder="예: 일본" /></div>
-        <div class="form-group"><label>도시</label><input type="text" id="ct-city" placeholder="예: 삿포로" /></div>
-      </div>
-      <div class="form-row">
-        <div class="form-group"><label>시작일</label><input type="date" id="ct-start" /></div>
-        <div class="form-group"><label>종료일</label><input type="date" id="ct-end" /></div>
-      </div>
-      <div class="form-row">
-        <div class="form-group"><label>동행자</label><input type="text" id="ct-companions" placeholder="예: 혼자, 친구 2명" /></div>
-      </div>
-      <div class="panel-actions">
-        <button class="btn btn-ghost btn-sm" onclick="toggleCreateTrip()">취소</button>
-        <button class="btn btn-primary btn-sm" onclick="createTrip()">만들기</button>
-      </div>
-    </div>
+/* ---- Header ---- */
+header {
+  background:#fff;
+  border-bottom:1px solid var(--border);
+  padding:0 24px;
+  height:56px;
+  display:flex;
+  align-items:center;
+  position:sticky;
+  top:0;
+  z-index:100;
+  box-shadow:var(--shadow);
+}
+.logo { font-size:1rem; font-weight:800; color:var(--pd,#F97316); text-decoration:none; white-space:nowrap; }
+nav { display:flex; gap:4px; margin-left:24px; }
+nav a {
+  text-decoration:none; color:var(--text-muted);
+  font-size:0.82rem; font-weight:600;
+  padding:5px 12px; border-radius:999px; transition:all .15s;
+}
+nav a:hover { background:var(--pl,#FFF7ED); color:var(--pd,#F97316); }
+nav a.active { background:var(--p,#FDBA74); color:#fff; }
+.header-right { margin-left:auto; display:flex; align-items:center; gap:10px; }
+#auth-btn {
+  background:var(--p,#FDBA74); color:#fff; border:none;
+  padding:6px 14px; border-radius:999px; font-size:0.8rem;
+  font-weight:700; cursor:pointer; transition:.15s;
+}
+#auth-btn:hover { background:var(--pd,#F97316); }
+#user-email { font-size:0.75rem; color:var(--text-muted); max-width:130px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 
-    <div class="chip-bar">
-      <button class="chip active" onclick="filterTrips('all',this)">전체</button>
-      <button class="chip" onclick="filterTrips('overseas',this)">해외여행 🌍</button>
-      <button class="chip" onclick="filterTrips('domestic',this)">국내여행 🏔️</button>
-    </div>
+/* ---- Main ---- */
+main { max-width:1100px; margin:0 auto; padding:28px 18px; }
+.page { display:none; }
+.page.active { display:block; }
 
-    <div id="trips-container"><div class="spinner"></div></div>
-  </div>
+/* ---- Page Titles ---- */
+.page-title { font-size:1.6rem; font-weight:800; letter-spacing:-0.02em; }
+.page-sub { color:var(--text-muted); font-size:0.85rem; margin-top:3px; }
+.home-header { display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap; gap:10px; }
 
-  <!-- ====== TRIP DETAIL ====== -->
-  <div id="page-trip" class="page">
-    <button class="back-btn" onclick="showPage('home')">← 목록으로</button>
+/* ---- Buttons ---- */
+.btn {
+  display:inline-flex; align-items:center; gap:4px;
+  padding:7px 16px; border-radius:999px;
+  font-size:0.82rem; font-weight:600;
+  cursor:pointer; border:none; transition:all .15s;
+  font-family:'Noto Sans KR',sans-serif; white-space:nowrap;
+}
+.btn-primary { background:var(--pd,#F97316); color:#fff; }
+.btn-primary:hover { opacity:.88; transform:translateY(-1px); }
+.btn-outline { background:transparent; color:var(--text-muted); border:1.5px solid var(--border); }
+.btn-outline:hover { border-color:var(--p,#FDBA74); color:var(--pd,#F97316); }
+.btn-ghost { background:transparent; color:var(--text-muted); }
+.btn-ghost:hover { background:var(--surface2); color:var(--text); }
+.btn-sm { padding:4px 11px; font-size:0.76rem; }
+.btn-xs { padding:2px 8px; font-size:0.72rem; }
+.btn-icon { padding:4px 6px; border-radius:8px; font-size:0.85rem; }
 
-    <!-- Trip Info (Editable) -->
-    <div class="trip-info-card">
-      <div class="trip-info-title-row">
-        <input class="trip-info-title" id="trip-title-input" value="" onblur="saveTripField('title', this.value)" />
-        <span class="edit-hint">클릭해서 수정</span>
-      </div>
-      <div class="trip-info-grid">
-        <div class="info-item">
-          <label>📅 시작일</label>
-          <input class="info-editable" type="date" id="trip-start-input" onblur="saveTripField('startDate', this.value)" />
-        </div>
-        <div class="info-item">
-          <label>📅 종료일</label>
-          <input class="info-editable" type="date" id="trip-end-input" onblur="saveTripField('endDate', this.value)" />
-        </div>
-        <div class="info-item">
-          <label>👥 동행자</label>
-          <input class="info-editable" id="trip-companions-input" placeholder="혼자" onblur="saveTripField('companions', this.value)" />
-        </div>
-        <div class="info-item">
-          <label>📍 여행지</label>
-          <input class="info-editable" id="trip-location-input" placeholder="도시, 나라" onblur="saveTripFieldLocation(this.value)" />
-        </div>
-        <div class="info-item">
-          <label>💰 총 경비</label>
-          <strong id="trip-budget-display" style="font-size:0.88rem;font-weight:800;color:var(--pd)">0원</strong>
-        </div>
-      </div>
-      <div class="currency-row">
-        <label>💱 환율</label>
-        <select id="currency-select" style="width:auto;padding:4px 8px" onchange="onCurrencyChange(this.value)">
-          <option value="">외화 선택 안함</option>
-          <option value="JPY">엔화 (JPY)</option>
-          <option value="EUR">유로 (EUR)</option>
-          <option value="USD">달러 (USD)</option>
-          <option value="CNY">위안 (CNY)</option>
-          <option value="THB">바트 (THB)</option>
-          <option value="VND">동 (VND)</option>
-          <option value="AUD">호주달러 (AUD)</option>
-        </select>
-        <span class="rate-display hidden" id="rate-display">
-          1<span id="currency-symbol"></span> = <span class="rate-value" id="rate-value-display" onclick="editRate()">-</span>원
-        </span>
-      </div>
-    </div>
+/* ---- Chips ---- */
+.chip-bar { display:flex; gap:6px; margin-bottom:18px; flex-wrap:wrap; }
+.chip {
+  padding:5px 14px; border-radius:999px;
+  border:1.5px solid var(--border); background:var(--surface);
+  font-size:0.78rem; cursor:pointer; transition:all .15s; font-weight:600; color:var(--text-muted);
+}
+.chip.active, .chip:hover { background:var(--p,#FDBA74); border-color:var(--p,#FDBA74); color:#fff; }
 
-    <!-- Reservations + Map -->
-    <div class="detail-grid">
-      <!-- Reservations -->
-      <div class="card">
-        <div class="card-header">
-          <h3>🎫 예약 목록</h3>
-          <div style="display:flex;gap:5px">
-            <button class="btn btn-outline btn-sm" onclick="openResForm('항공')">✈ 항공</button>
-            <button class="btn btn-outline btn-sm" onclick="openResForm('숙소')">🏨 숙소</button>
-            <button class="btn btn-outline btn-sm" onclick="openResForm('기타')">＋ 기타</button>
-          </div>
-        </div>
-        <div class="card-body" style="padding:10px 14px">
-          <div class="res-section">
-            <div class="res-section-header" onclick="toggleResSection('항공')">
-              <span>✈️ 항공</span><span class="collapse-btn" id="res-toggle-항공">▲</span>
-            </div>
-            <div class="res-section-body" id="res-body-항공">
-              <div id="res-form-항공" class="res-add-form hidden"></div>
-              <div id="res-list-항공"><div class="empty-msg" style="padding:8px 0;font-size:0.78rem">항공 예약 없음</div></div>
-            </div>
-          </div>
-          <div class="res-section">
-            <div class="res-section-header" onclick="toggleResSection('숙소')">
-              <span>🏨 숙소</span><span class="collapse-btn" id="res-toggle-숙소">▲</span>
-            </div>
-            <div class="res-section-body" id="res-body-숙소">
-              <div id="res-form-숙소" class="res-add-form hidden"></div>
-              <div id="res-list-숙소"><div class="empty-msg" style="padding:8px 0;font-size:0.78rem">숙소 예약 없음</div></div>
-            </div>
-          </div>
-          <div class="res-section">
-            <div class="res-section-header" onclick="toggleResSection('기타')">
-              <span>📋 기타</span><span class="collapse-btn" id="res-toggle-기타">▲</span>
-            </div>
-            <div class="res-section-body" id="res-body-기타">
-              <div id="res-form-기타" class="res-add-form hidden"></div>
-              <div id="res-list-기타"><div class="empty-msg" style="padding:8px 0;font-size:0.78rem">기타 예약 없음</div></div>
-            </div>
-          </div>
-        </div>
-      </div>
+/* ---- Card ---- */
+.card {
+  background:#fff; border:1px solid var(--border);
+  border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; margin-bottom:14px;
+}
+.card-header {
+  padding:12px 16px; border-bottom:1px solid var(--border);
+  display:flex; align-items:center; justify-content:space-between;
+  background:var(--surface2);
+}
+.card-header h3 { font-size:0.9rem; font-weight:700; }
+.card-body { padding:14px 16px; }
 
-      <!-- Map -->
-      <div class="card">
-        <div class="card-header">
-          <h3>🗺️ 지도</h3>
-          <button class="collapse-btn" id="map-collapse-btn" onclick="toggleMap()">▲ 접기</button>
-        </div>
-        <div id="map-card-body" class="card-body" style="padding:12px 14px">
-          <div class="map-link-row">
-            <input type="url" id="map-link-input" placeholder="구글 내 지도 링크 붙여넣기" />
-            <button class="btn btn-outline btn-sm" onclick="applyMapLink()">적용</button>
-          </div>
-          <div class="map-frame-wrap">
-            <iframe id="map-frame" src="" loading="lazy" allowfullscreen title="지도"></iframe>
-          </div>
-        </div>
-      </div>
-    </div>
+/* ---- Inline Panel (trip create) ---- */
+.inline-panel {
+  background:#fff; border:1.5px solid var(--pb,#FFEDD5);
+  border-radius:var(--radius); padding:20px; margin-bottom:22px;
+  box-shadow:var(--shadow); animation:slide-down .18s ease;
+}
+@keyframes slide-down { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:none} }
+.inline-panel-title { font-size:0.95rem; font-weight:800; color:var(--pd,#F97316); margin-bottom:14px; }
 
-    <!-- 일정 Section -->
-    <div class="section-card">
-      <div class="section-header">
-        <span class="section-title">📅 여행 일정</span>
-        <div class="section-toolbar">
-          <div class="view-toggle">
-            <button class="btn btn-outline btn-sm view-active" id="view-table-btn" onclick="setView('table')">목록</button>
-            <button class="btn btn-outline btn-sm" id="view-time-btn" onclick="setView('timetable')">시간표</button>
-          </div>
-        </div>
-      </div>
-      <div class="section-body">
-        <div id="schedule-table-view">
-          <div class="table-wrap">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>분류</th><th>날짜</th><th>시간</th><th>장소</th>
-                  <th>내용</th><th>교통편</th><th>비고</th><th></th>
-                </tr>
-              </thead>
-              <tbody id="schedule-tbody"></tbody>
-              <tfoot>
-                <tr class="add-row">
-                  <td><select id="sch-add-cat" style="min-width:70px"><option value="">분류</option></select></td>
-                  <td><input type="date" id="sch-add-date" /></td>
-                  <td><input type="time" id="sch-add-time" /></td>
-                  <td><input type="text" id="sch-add-loc" placeholder="장소" /></td>
-                  <td><input type="text" id="sch-add-content" placeholder="내용" /></td>
-                  <td><input type="text" id="sch-add-trans" placeholder="교통편" /></td>
-                  <td><input type="text" id="sch-add-notes" placeholder="비고" /></td>
-                  <td><button class="add-btn" onclick="saveScheduleRow()">＋ 추가</button></td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        </div>
-        <div id="schedule-timetable-view" class="hidden"></div>
-      </div>
-    </div>
+/* ---- Form elements ---- */
+.form-row { display:flex; gap:10px; margin-bottom:9px; flex-wrap:wrap; }
+.form-group { display:flex; flex-direction:column; gap:4px; flex:1; min-width:110px; }
+.form-group.full { flex:2 1 220px; }
+.form-group label { font-size:0.72rem; font-weight:700; color:var(--text-muted); }
+input, select, textarea {
+  border:1.5px solid var(--border); border-radius:var(--radius-sm);
+  padding:7px 10px; font-size:0.83rem;
+  background:#fff; color:var(--text); outline:none;
+  font-family:'Noto Sans KR',inherit; transition:border-color .15s; width:100%;
+}
+input:focus, select:focus { border-color:var(--p,#FDBA74); }
+.hint { font-size:0.73rem; color:var(--text-muted); }
+.panel-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:14px; }
+.form-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:18px; }
+.sub-form-actions { display:flex; justify-content:flex-end; gap:6px; margin-top:8px; }
 
-    <!-- 지출 Section -->
-    <div class="section-card">
-      <div class="section-header">
-        <span class="section-title">💸 지출 내역</span>
-        <div class="summary-row">
-          <span id="expense-summary-display" class="summary-val">합계 0원</span>
-          <span class="hint" id="rate-hint"></span>
-        </div>
-      </div>
-      <div class="section-body">
-        <div class="table-wrap">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>분류</th><th>날짜</th><th>제목</th>
-                <th style="text-align:right">원화</th>
-                <th style="text-align:right" id="foreign-col-header">외화</th><th></th>
-              </tr>
-            </thead>
-            <tbody id="expense-tbody"></tbody>
-            <tfoot>
-              <tr class="add-row">
-                <td><select id="exp-add-cat" style="min-width:70px"><option value="">분류</option></select></td>
-                <td><input type="date" id="exp-add-date" /></td>
-                <td><input type="text" id="exp-add-title" placeholder="제목 *" /></td>
-                <td><input type="number" id="exp-add-krw" placeholder="원화" oninput="autoCalcForeign()" style="text-align:right;min-width:75px" /></td>
-                <td><input type="number" id="exp-add-foreign" placeholder="외화" oninput="autoCalcKrw()" style="text-align:right;min-width:65px" /></td>
-                <td><button class="add-btn" onclick="saveExpenseRow()">＋ 추가</button></td>
-              </tr>
-              <tr>
-                <td colspan="3"><strong>합계</strong></td>
-                <td style="text-align:right" id="total-krw-display"><strong>0원</strong></td>
-                <td style="text-align:right" id="total-foreign-display"></td>
-                <td></td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-      </div>
-    </div>
+/* ---- Trip Cards (compact horizontal) ---- */
+.year-group { margin-bottom:28px; }
+.year-label {
+  font-size:0.8rem; font-weight:700; color:var(--text-muted);
+  margin-bottom:10px; padding-bottom:5px;
+  border-bottom:1.5px dashed var(--border);
+}
+.trip-list { display:flex; flex-direction:column; gap:7px; }
+.trip-card {
+  background:#fff; border:1px solid var(--border);
+  border-radius:var(--radius-sm); overflow:hidden;
+  cursor:pointer; transition:all .18s;
+  display:flex; align-items:center;
+  padding:12px 16px; gap:12px;
+  position:relative;
+}
+.trip-card:hover { border-color:var(--p,#FDBA74); box-shadow:var(--shadow-md); transform:translateX(3px); }
+.trip-card::before {
+  content:''; position:absolute; left:0; top:0; bottom:0;
+  width:4px; background:var(--p,#FDBA74); border-radius:4px 0 0 4px;
+}
+.trip-card-emoji { font-size:1.6rem; flex-shrink:0; width:36px; text-align:center; }
+.trip-card-body { flex:1; min-width:0; }
+.trip-card-title { font-size:0.92rem; font-weight:700; margin-bottom:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.trip-card-meta { font-size:0.75rem; color:var(--text-muted); }
+.trip-card-actions { display:flex; gap:4px; flex-shrink:0; opacity:0; transition:opacity .15s; }
+.trip-card:hover .trip-card-actions { opacity:1; }
+.tag { display:inline-block; padding:1px 8px; border-radius:999px; font-size:0.68rem; font-weight:600; background:var(--pl,#FFF7ED); color:var(--pd,#F97316); }
 
-    <!-- 가고싶은 곳 Section -->
-    <div class="section-card">
-      <div class="section-header">
-        <span class="section-title">⭐ 가고싶은 곳</span>
-        <div style="display:flex;align-items:center;gap:8px">
-          <input type="text" id="trip-bucket-region" placeholder="지역 검색" style="width:120px;padding:4px 8px;font-size:0.78rem;border-radius:7px;border:1.5px solid var(--border)" oninput="renderTripBucket()" />
-          <button class="btn btn-primary btn-sm" onclick="openTripBucketModal()">＋ 추가</button>
-        </div>
-      </div>
-      <div class="section-body" style="padding:10px 14px">
-        <div id="trip-bucket-board" class="kanban-board"></div>
-      </div>
-    </div>
-  </div>
+/* ---- Trip Detail ---- */
+.back-btn { display:inline-flex; align-items:center; gap:5px; color:var(--text-muted); font-size:0.82rem; cursor:pointer; margin-bottom:14px; border:none; background:none; font-family:inherit; font-weight:600; }
+.back-btn:hover { color:var(--pd,#F97316); }
 
-  <!-- ====== BUCKET PAGE ====== -->
-  <div id="page-bucket" class="page">
-    <div class="home-header">
-      <div>
-        <h1 class="page-title">버킷플레이스 ⭐</h1>
-        <p class="page-sub">가보고 싶은 장소를 모아두는 곳</p>
-      </div>
-      <div style="display:flex;gap:6px;align-items:center">
-        <button class="bucket-filter-toggle" id="filter-toggle-btn" onclick="toggleBucketFilter()">
-          <span>🔽</span> 필터
-        </button>
-      </div>
-    </div>
+/* ---- Trip Info Card (editable) ---- */
+.trip-info-card {
+  background:#fff; border:1px solid var(--border);
+  border-radius:var(--radius); padding:20px; margin-bottom:14px;
+  box-shadow:var(--shadow); position:relative;
+}
+.trip-info-title-row { display:flex; align-items:center; gap:8px; margin-bottom:14px; }
+.trip-info-title {
+  font-size:1.5rem; font-weight:800; letter-spacing:-0.01em;
+  border:none; outline:none; background:transparent;
+  font-family:inherit; color:var(--text); padding:0; flex:1;
+  border-bottom:2px solid transparent; transition:border-color .15s;
+}
+.trip-info-title:hover, .trip-info-title:focus { border-bottom-color:var(--p,#FDBA74); }
+.edit-hint { font-size:0.7rem; color:var(--text-muted); }
 
-    <div id="bucket-filter-row" class="bucket-filter-row hidden">
-      <label>유형</label>
-      <select id="bf-type" onchange="renderBucketList()"><option value="">전체</option></select>
-      <label>나라</label>
-      <input type="text" id="bf-country" placeholder="나라" style="width:80px" oninput="renderBucketList()" />
-      <label>지역</label>
-      <input type="text" id="bf-region" placeholder="지역" style="width:80px" oninput="renderBucketList()" />
-      <label>계절</label>
-      <select id="bf-season" onchange="renderBucketList()">
-        <option value="">전체</option>
-        <option>봄</option><option>여름</option><option>가을</option><option>겨울</option><option>연중</option>
-      </select>
-      <label style="display:flex;align-items:center;gap:4px">
-        <input type="checkbox" id="bf-unvisited" onchange="renderBucketList()" style="width:auto" /> 미방문만
-      </label>
-      <button class="btn btn-ghost btn-sm" onclick="resetBucketFilter()">✕ 초기화</button>
-    </div>
+.trip-info-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+@media(min-width:640px) { .trip-info-grid { grid-template-columns:repeat(4,1fr); } }
+.info-item label { font-size:0.7rem; font-weight:700; color:var(--text-muted); display:block; margin-bottom:2px; }
+.info-editable {
+  font-size:0.88rem; font-weight:700;
+  border:none; outline:none; background:transparent;
+  font-family:inherit; color:var(--text); padding:2px 4px;
+  border-radius:5px; width:100%; border:1.5px solid transparent;
+  transition:border-color .15s;
+}
+.info-editable:hover, .info-editable:focus { border-color:var(--p,#FDBA74); background:var(--pl,#FFF7ED); }
+.currency-row { margin-top:12px; padding-top:12px; border-top:1px dashed var(--border); display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:0.83rem; }
+.currency-row label { font-weight:700; color:var(--text-muted); font-size:0.75rem; }
+.rate-display { font-size:0.82rem; color:var(--text-muted); }
+.rate-value { font-weight:800; color:var(--pd,#F97316); cursor:pointer; border-bottom:1px dashed var(--pd,#F97316); }
 
-    <div class="bucket-list-wrap">
-      <table class="bucket-list-table">
-        <thead>
-          <tr>
-            <th style="width:26px">✓</th>
-            <th>유형</th><th>나라</th><th>지역</th>
-            <th>장소</th><th>계절</th><th>비고</th>
-            <th style="width:44px"></th>
-          </tr>
-        </thead>
-        <tbody id="bucket-list-tbody"></tbody>
-        <tfoot>
-          <tr class="add-row" id="bucket-add-row">
-            <td></td>
-            <td><select id="ba-type"><option value="">유형</option></select></td>
-            <td><input type="text" id="ba-country" placeholder="나라" /></td>
-            <td><input type="text" id="ba-region" placeholder="지역" /></td>
-            <td><input type="text" id="ba-place" placeholder="장소 *" /></td>
-            <td>
-              <select id="ba-season">
-                <option value="">계절</option>
-                <option>봄</option><option>여름</option><option>가을</option><option>겨울</option><option>연중</option>
-              </select>
-            </td>
-            <td><input type="text" id="ba-notes" placeholder="비고" /></td>
-            <td><button class="add-btn" onclick="saveBucketRow()">＋</button></td>
-          </tr>
-        </tfoot>
-      </table>
-    </div>
-  </div>
+/* ---- Detail Grid (reservations + map) ---- */
+.detail-grid { display:grid; grid-template-columns:1fr; gap:14px; margin-bottom:14px; }
+@media(min-width:900px) { .detail-grid { grid-template-columns:1.7fr 1fr; } }
 
-  <!-- ====== SETTINGS ====== -->
-  <div id="page-settings" class="page">
-    <h1 class="page-title" style="margin-bottom:18px">설정 ⚙️</h1>
+/* ---- Sections (일정, 지출, 가고싶은 곳) ---- */
+.section-card { background:#fff; border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); margin-bottom:14px; overflow:hidden; }
+.section-header { padding:12px 16px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; background:var(--surface2); }
+.section-title { font-size:0.92rem; font-weight:700; }
+.section-body { padding:14px 16px; }
+.section-toolbar { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
 
-    <div class="settings-card">
-      <h3>💾 데이터 현황</h3>
-      <div class="storage-bar-wrap">
-        <div class="storage-bar-label"><span>Firestore 문서 수</span><span id="storage-usage-text">계산 중...</span></div>
-        <div class="storage-bar-outer"><div class="storage-bar-inner" id="storage-bar-inner" style="width:0%"></div></div>
-        <p class="hint" style="margin-top:5px">무료 플랜 기준 쓰기 20,000회/일, 읽기 50,000회/일</p>
-      </div>
-      <button class="btn btn-outline btn-sm" onclick="seedSampleData()" id="seed-btn">🗾 삿포로 샘플 데이터 가져오기</button>
-    </div>
+/* ---- Tables ---- */
+.table-wrap { overflow-x:auto; }
+.data-table { width:100%; border-collapse:collapse; font-size:0.82rem; }
+.data-table th { text-align:left; padding:8px 9px; color:var(--text-muted); font-weight:700; border-bottom:2px solid var(--border); white-space:nowrap; font-size:0.74rem; background:var(--surface2); }
+.data-table td { padding:8px 9px; border-bottom:1px solid var(--border); vertical-align:middle; }
+.data-table tr:last-child td { border-bottom:none; }
+.data-table tbody tr:hover td { background:var(--pl,#FFF7ED); }
+.data-table tfoot td { font-weight:700; border-top:2px solid var(--border); border-bottom:none; background:var(--surface2); }
 
-    <div class="settings-card">
-      <h3>🎨 테마 색상</h3>
-      <div class="theme-options">
-        <button class="theme-btn" data-theme="blue" onclick="setTheme('blue')"><div class="theme-swatch" style="background:#93C5FD"></div><span>파랑</span></button>
-        <button class="theme-btn" data-theme="pink" onclick="setTheme('pink')"><div class="theme-swatch" style="background:#F9A8D4"></div><span>분홍</span></button>
-        <button class="theme-btn" data-theme="orange" onclick="setTheme('orange')"><div class="theme-swatch" style="background:#FDBA74"></div><span>주황</span></button>
-        <button class="theme-btn" data-theme="green" onclick="setTheme('green')"><div class="theme-swatch" style="background:#86EFAC"></div><span>연두</span></button>
-        <button class="theme-btn" data-theme="purple" onclick="setTheme('purple')"><div class="theme-swatch" style="background:#C4B5FD"></div><span>보라</span></button>
-      </div>
-      <p class="hint" style="margin-top:10px" id="theme-current-label">현재 테마: 주황</p>
-    </div>
+/* Add row */
+.data-table .add-row td { background:var(--pl,#FFF7ED); padding:5px 4px; border-bottom:2px solid var(--pb,#FFEDD5); }
+.data-table .add-row input, .data-table .add-row select {
+  padding:4px 6px; font-size:0.78rem; border-radius:7px;
+  border:1.5px solid var(--border); background:#fff; width:100%;
+}
+.data-table .add-row input:focus, .data-table .add-row select:focus { border-color:var(--p); }
+.add-btn { background:var(--pd,#F97316); color:#fff; border:none; border-radius:7px; padding:4px 9px; font-size:0.76rem; cursor:pointer; font-family:inherit; font-weight:700; white-space:nowrap; }
+.add-btn:hover { opacity:.85; }
+.cancel-btn { background:transparent; border:none; color:var(--text-muted); cursor:pointer; font-size:0.76rem; padding:4px 7px; font-family:inherit; }
 
-    <div class="settings-card">
-      <h3>🏷️ 분류 설정</h3>
-      <p class="hint" style="margin-bottom:14px">설정한 항목이 입력 폼의 분류 선택지에 표시됩니다.</p>
-      <div class="cat-manage-section">
-        <div class="cat-manage-title">📅 여행일정 분류</div>
-        <div class="cat-tags" id="cat-tags-schedule"></div>
-        <div class="cat-add-row">
-          <input type="text" id="cat-input-schedule" placeholder="새 분류..." onkeydown="if(event.key==='Enter')addCategory('schedule')" />
-          <button class="btn btn-primary btn-sm" onclick="addCategory('schedule')">추가</button>
-        </div>
-      </div>
-      <div class="cat-manage-section" style="margin-top:14px">
-        <div class="cat-manage-title">💸 지출 분류</div>
-        <div class="cat-tags" id="cat-tags-expense"></div>
-        <div class="cat-add-row">
-          <input type="text" id="cat-input-expense" placeholder="새 분류..." onkeydown="if(event.key==='Enter')addCategory('expense')" />
-          <button class="btn btn-primary btn-sm" onclick="addCategory('expense')">추가</button>
-        </div>
-      </div>
-      <div class="cat-manage-section" style="margin-top:14px">
-        <div class="cat-manage-title">⭐ 버킷플레이스 유형</div>
-        <div class="cat-tags" id="cat-tags-bucket"></div>
-        <div class="cat-add-row">
-          <input type="text" id="cat-input-bucket" placeholder="새 유형..." onkeydown="if(event.key==='Enter')addCategory('bucket')" />
-          <button class="btn btn-primary btn-sm" onclick="addCategory('bucket')">추가</button>
-        </div>
-      </div>
-    </div>
+/* Edit row */
+.data-table .edit-row td { background:var(--pl,#FFF7ED); padding:5px 4px; }
+.data-table .edit-row input, .data-table .edit-row select {
+  padding:4px 6px; font-size:0.78rem; border-radius:7px;
+  border:1.5px solid var(--border); background:#fff; width:100%;
+}
 
-    <div class="settings-card">
-      <h3>👤 계정</h3>
-      <div id="settings-user-info" style="font-size:0.85rem;color:var(--text-muted);margin-bottom:10px">로그인 정보 없음</div>
-      <button class="btn btn-outline btn-sm" onclick="handleAuth()">로그아웃</button>
-    </div>
-  </div>
+/* ---- Badges ---- */
+.badge { display:inline-block; padding:1px 8px; border-radius:999px; font-size:0.7rem; font-weight:700; }
+.badge-식사, .badge-식비 { background:#fed7aa; color:#9a3412; }
+.badge-숙소 { background:#e9d5ff; color:#6b21a8; }
+.badge-관광, .badge-관광\/체험 { background:#bbf7d0; color:#166534; }
+.badge-공연\/행사, .badge-체험 { background:#bfdbfe; color:#1e40af; }
+.badge-카페 { background:#fef9c3; color:#713f12; }
+.badge-쇼핑 { background:#fde68a; color:#92400e; }
+.badge-이동, .badge-교통 { background:#e5e7eb; color:#374151; }
+.badge-항공 { background:#a5f3fc; color:#0e7490; }
+.badge-기타, .badge-default { background:var(--surface2); color:var(--text-muted); }
+.badge-기념품 { background:#fce7f3; color:#9d174d; }
+.badge-풍경 { background:#d1fae5; color:#065f46; }
+.badge-맛집 { background:#fef3c7; color:#92400e; }
 
-</main>
+/* ---- Timetable ---- */
+.timetable-day { margin-bottom:20px; }
+.timetable-day-label { font-size:0.88rem; font-weight:700; color:var(--pd,#F97316); margin-bottom:8px; }
+.timetable-items { border-left:3px solid var(--pb,#FFEDD5); padding-left:14px; display:flex; flex-direction:column; gap:6px; }
+.timetable-item { background:var(--surface2); border-radius:8px; padding:8px 12px; display:flex; gap:10px; }
+.timetable-time { font-size:0.72rem; color:var(--text-muted); min-width:36px; padding-top:2px; font-weight:700; }
+.timetable-info h4 { font-size:0.82rem; font-weight:700; }
+.timetable-info p { font-size:0.75rem; color:var(--text-muted); margin-top:1px; }
 
-<!-- Modal: 가고싶은 곳 -->
-<div id="modal-bucket-trip" class="modal-overlay hidden">
-  <div class="modal">
-    <div class="modal-header">
-      <h2>⭐ 가고싶은 곳 추가</h2>
-      <button class="modal-close" onclick="closeModal('modal-bucket-trip')">✕</button>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:0">
-      <div class="detail-row required-row">
-        <span class="detail-icon">🗺️</span>
-        <label>장소명 *</label>
-        <input type="text" id="bk-place" class="detail-input" placeholder="장소 이름" />
-      </div>
-      <div class="detail-row">
-        <span class="detail-icon">🏷️</span>
-        <label>유형</label>
-        <select id="bk-category" class="detail-input"></select>
-      </div>
-      <div class="detail-row">
-        <span class="detail-icon">🌍</span>
-        <label>나라</label>
-        <input type="text" id="bk-country" class="detail-input" placeholder="미입력" />
-      </div>
-      <div class="detail-row">
-        <span class="detail-icon">📍</span>
-        <label>지역</label>
-        <input type="text" id="bk-region" class="detail-input" placeholder="미입력" />
-      </div>
-      <div class="detail-row">
-        <span class="detail-icon">📅</span>
-        <label>계절</label>
-        <select id="bk-season" class="detail-input">
-          <option value="">미입력</option>
-          <option>봄</option><option>여름</option><option>가을</option><option>겨울</option><option>연중</option>
-        </select>
-      </div>
-      <div class="detail-row">
-        <span class="detail-icon">📝</span>
-        <label>비고</label>
-        <input type="text" id="bk-notes" class="detail-input" placeholder="미입력" />
-      </div>
-      <div class="detail-row">
-        <span class="detail-icon">✅</span>
-        <label>방문완료</label>
-        <input type="checkbox" id="bk-visited" style="width:18px;height:18px;accent-color:var(--pd)" />
-      </div>
-    </div>
-    <div class="form-actions">
-      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-bucket-trip')">취소</button>
-      <button class="btn btn-primary btn-sm" onclick="saveTripBucketItem()">추가하기</button>
-    </div>
-  </div>
-</div>
+/* ---- View Toggle ---- */
+.view-toggle { display:flex; gap:4px; }
+.view-toggle .btn { border-radius:8px; }
+.view-active { background:var(--pd,#F97316) !important; color:#fff !important; border-color:transparent !important; }
 
-<script src="app.js"></script>
-</body>
-</html>
+/* ---- Reservation Sections ---- */
+.res-section { margin-bottom:10px; border:1px solid var(--border); border-radius:var(--radius-sm); overflow:hidden; }
+.res-section-header {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:9px 13px; background:var(--surface2);
+  cursor:pointer; user-select:none; font-size:0.85rem; font-weight:700;
+  border-bottom:1px solid var(--border);
+}
+.res-section-header:hover { background:var(--pl,#FFF7ED); }
+.res-section-body { padding:10px 13px 12px; }
+.res-section-body.collapsed { display:none; }
+.res-item { display:flex; align-items:flex-start; justify-content:space-between; padding:9px 0; border-bottom:1px solid var(--border); gap:6px; }
+.res-item:last-child { border-bottom:none; }
+.res-info h4 { font-size:0.83rem; font-weight:700; margin-bottom:2px; }
+.res-info p { font-size:0.74rem; color:var(--text-muted); }
+.res-actions { display:flex; gap:3px; flex-shrink:0; }
+.res-add-form { background:var(--pl,#FFF7ED); border:1px solid var(--pb,#FFEDD5); border-radius:var(--radius-sm); padding:11px; margin-top:8px; animation:slide-down .15s ease; }
+
+/* ---- Map ---- */
+.map-link-row { display:flex; gap:6px; margin-bottom:8px; }
+.map-link-row input { flex:1; }
+.map-frame-wrap { border-radius:var(--radius-sm); overflow:hidden; border:1px solid var(--border); }
+#map-frame { width:100%; height:300px; border:none; display:block; }
+
+/* ---- Collapse Button ---- */
+.collapse-btn { background:none; border:none; cursor:pointer; font-size:0.74rem; color:var(--text-muted); padding:2px 6px; border-radius:6px; transition:all .13s; }
+.collapse-btn:hover { background:var(--pl,#FFF7ED); color:var(--pd,#F97316); }
+
+/* ---- Summary row ---- */
+.summary-row { display:flex; align-items:center; gap:10px; font-size:0.8rem; }
+.summary-val { font-weight:700; color:var(--pd,#F97316); }
+
+/* ---- Kanban (가고싶은 곳) ---- */
+.kanban-board { display:flex; gap:10px; overflow-x:auto; padding-bottom:8px; }
+.kanban-col {
+  min-width:180px; width:180px; flex-shrink:0;
+  border-radius:var(--radius-sm);
+  border:1px solid var(--border);
+  background:var(--surface2);
+  overflow:hidden;
+}
+.kanban-col-header {
+  padding:8px 10px; border-bottom:1px solid var(--border);
+  display:flex; align-items:center; gap:6px;
+  background:var(--surface);
+}
+.kanban-cat-label { font-size:0.78rem; font-weight:800; color:var(--text); }
+.kanban-cat-count { font-size:0.72rem; color:var(--text-muted); font-weight:400; }
+.kanban-items { padding:6px; display:flex; flex-direction:column; gap:4px; min-height:50px; }
+.kanban-item {
+  background:#fff; border:1px solid var(--border);
+  border-radius:7px; padding:7px 9px;
+  font-size:0.8rem; font-weight:600;
+  display:flex; align-items:center; gap:6px;
+  cursor:default; transition:border-color .13s;
+  position:relative;
+}
+.kanban-item:hover { border-color:var(--p,#FDBA74); }
+.kanban-item.visited { opacity:.5; }
+.kanban-item-text { flex:1; min-width:0; }
+.kanban-item-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.kanban-item-name.done { text-decoration:line-through; color:var(--text-muted); }
+.kanban-item-sub { font-size:0.68rem; color:var(--text-muted); font-weight:400; }
+.kanban-item-actions { display:flex; gap:2px; opacity:0; transition:opacity .13s; flex-shrink:0; }
+.kanban-item:hover .kanban-item-actions { opacity:1; }
+.visit-toggle {
+  width:16px; height:16px; border-radius:50%;
+  border:2px solid var(--border); cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  flex-shrink:0; background:#fff; transition:all .15s; font-size:9px;
+}
+.visit-toggle.done { background:var(--pd,#F97316); border-color:var(--pd,#F97316); color:#fff; }
+.kanban-add-row { padding:5px 6px; border-top:1px dashed var(--border); display:flex; gap:4px; }
+.kanban-add-input { flex:1; padding:4px 7px; font-size:0.76rem; border:1px solid var(--border); border-radius:6px; background:#fff; font-family:inherit; }
+.kanban-add-input:focus { border-color:var(--p,#FDBA74); outline:none; }
+.kanban-add-btn { background:var(--pd,#F97316); color:#fff; border:none; border-radius:6px; padding:4px 7px; font-size:0.76rem; cursor:pointer; }
+
+/* ---- Bucket List (버킷플레이스) ---- */
+.bucket-header-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; gap:8px; }
+.bucket-filter-toggle { display:flex; align-items:center; gap:5px; padding:5px 11px; border-radius:999px; border:1.5px solid var(--border); background:#fff; font-size:0.78rem; font-weight:600; cursor:pointer; color:var(--text-muted); transition:all .15s; font-family:inherit; }
+.bucket-filter-toggle:hover, .bucket-filter-toggle.active { border-color:var(--p,#FDBA74); color:var(--pd,#F97316); background:var(--pl,#FFF7ED); }
+.bucket-filter-row { background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:9px 12px; margin-bottom:10px; display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+.bucket-filter-row label { font-size:0.72rem; font-weight:700; color:var(--text-muted); white-space:nowrap; }
+.bucket-filter-row input, .bucket-filter-row select { padding:4px 8px; font-size:0.78rem; border-radius:7px; border:1.5px solid var(--border); background:#fff; min-width:70px; }
+.bucket-list-wrap { overflow-x:auto; }
+.bucket-list-table { width:100%; border-collapse:collapse; font-size:0.82rem; min-width:640px; }
+.bucket-list-table th { text-align:left; padding:8px 9px; color:var(--text-muted); font-weight:700; border-bottom:2px solid var(--border); white-space:nowrap; font-size:0.74rem; background:var(--surface2); }
+.bucket-list-table td { padding:8px 9px; border-bottom:1px solid var(--border); vertical-align:middle; }
+.bucket-list-table tr:last-child td { border-bottom:none; }
+.bucket-list-table tbody tr:hover td { background:var(--pl,#FFF7ED); }
+.bucket-list-table .done-row td { opacity:.5; text-decoration:line-through; }
+.bucket-list-table .add-row td { background:var(--pl,#FFF7ED); padding:5px 4px; }
+.bucket-list-table .add-row input, .bucket-list-table .add-row select { padding:4px 6px; font-size:0.78rem; border-radius:7px; border:1.5px solid var(--border); background:#fff; width:100%; }
+.bucket-list-table .edit-row td { background:var(--pl,#FFF7ED); padding:5px 4px; }
+.bucket-list-table .edit-row input, .bucket-list-table .edit-row select { padding:4px 6px; font-size:0.78rem; border-radius:7px; border:1.5px solid var(--border); background:#fff; width:100%; }
+
+/* ---- Settings ---- */
+.settings-card { background:#fff; border:1px solid var(--border); border-radius:var(--radius); padding:20px; margin-bottom:14px; box-shadow:var(--shadow); }
+.settings-card h3 { font-size:0.95rem; font-weight:800; margin-bottom:14px; }
+.theme-options { display:flex; gap:10px; flex-wrap:wrap; }
+.theme-btn { display:flex; flex-direction:column; align-items:center; gap:6px; padding:12px 14px; border:2px solid var(--border); border-radius:var(--radius-sm); background:var(--surface2); cursor:pointer; font-family:inherit; font-size:0.78rem; font-weight:700; color:var(--text-muted); transition:all .15s; }
+.theme-btn:hover { border-color:var(--p,#FDBA74); transform:translateY(-1px); }
+.theme-btn.selected { border-color:var(--pd,#F97316); background:var(--pl,#FFF7ED); color:var(--pd,#F97316); }
+.theme-swatch { width:34px; height:34px; border-radius:50%; border:3px solid #fff; box-shadow:0 2px 6px rgba(0,0,0,0.13); }
+.storage-bar-wrap { margin-bottom:14px; }
+.storage-bar-label { display:flex; justify-content:space-between; font-size:0.76rem; color:var(--text-muted); margin-bottom:5px; font-weight:600; }
+.storage-bar-outer { height:8px; background:var(--border); border-radius:999px; overflow:hidden; }
+.storage-bar-inner { height:100%; background:linear-gradient(90deg,var(--p),var(--pd)); border-radius:999px; transition:width .5s ease; }
+.cat-manage-section { margin-bottom:16px; }
+.cat-manage-title { font-size:0.82rem; font-weight:700; color:var(--text); margin-bottom:8px; }
+.cat-tags { display:flex; gap:5px; flex-wrap:wrap; margin-bottom:7px; }
+.cat-tag { display:inline-flex; align-items:center; gap:3px; padding:3px 9px; border-radius:999px; background:var(--pb,#FFEDD5); color:var(--pd,#F97316); font-size:0.74rem; font-weight:700; }
+.cat-tag .rm-cat { background:none; border:none; cursor:pointer; color:var(--pd,#F97316); font-size:0.72rem; padding:0 1px; line-height:1; font-weight:900; }
+.cat-tag .rm-cat:hover { color:red; }
+.cat-add-row { display:flex; gap:5px; }
+.cat-add-row input { flex:1; padding:5px 9px; font-size:0.78rem; border-radius:7px; border:1.5px solid var(--border); }
+
+/* ---- Modal ---- */
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.3); z-index:200; display:flex; align-items:center; justify-content:center; padding:16px; backdrop-filter:blur(4px); }
+.modal { background:#fff; border-radius:18px; padding:24px; max-width:420px; width:100%; max-height:90vh; overflow-y:auto; box-shadow:0 12px 40px rgba(0,0,0,0.15); animation:modal-in .18s ease; }
+@keyframes modal-in { from{transform:translateY(16px);opacity:0} to{transform:none;opacity:1} }
+.modal-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
+.modal-header h2 { font-size:1rem; font-weight:800; }
+.modal-close { background:none; border:none; font-size:1.1rem; cursor:pointer; color:var(--text-muted); }
+.modal-close:hover { color:var(--text); }
+.detail-row { display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--border); }
+.detail-row:last-child { border-bottom:none; }
+.required-row { margin-top:8px; border:1.5px solid var(--pb,#FFEDD5); border-radius:var(--radius-sm); padding:10px; background:var(--pl,#FFF7ED); }
+.detail-icon { font-size:1rem; width:22px; text-align:center; flex-shrink:0; }
+.detail-row label { font-size:0.75rem; font-weight:700; color:var(--text-muted); min-width:55px; }
+.detail-input { flex:1; padding:5px 9px; border:1.5px solid var(--border); border-radius:7px; font-size:0.83rem; }
+.detail-input:focus { border-color:var(--p,#FDBA74); }
+
+/* ---- Empty / Spinner ---- */
+.empty-msg { text-align:center; padding:18px; color:var(--text-muted); font-size:0.82rem; }
+.empty-state { text-align:center; padding:40px 20px; color:var(--text-muted); }
+.empty-state .icon { font-size:3rem; margin-bottom:10px; }
+.empty-state h3 { font-size:0.95rem; font-weight:700; color:var(--text); margin-bottom:5px; }
+.spinner { border:3px solid var(--border); border-top-color:var(--pd,#F97316); border-radius:50%; width:26px; height:26px; animation:spin .8s linear infinite; margin:36px auto; }
+@keyframes spin { to{transform:rotate(360deg)} }
+
+/* ---- Toast ---- */
+.toast { position:fixed; bottom:22px; right:22px; background:var(--text); color:#fff; padding:10px 18px; border-radius:999px; font-size:0.82rem; font-weight:700; z-index:1000; box-shadow:var(--shadow-md); animation:toast-in .22s ease; }
+@keyframes toast-in { from{transform:translateY(14px);opacity:0} to{transform:none;opacity:1} }
+
+/* ---- Utils ---- */
+.hidden { display:none !important; }
+
+@media(max-width:640px) {
+  main { padding:18px 12px; }
+  .page-title { font-size:1.35rem; }
+  .detail-grid { grid-template-columns:1fr; }
+  .form-row { flex-direction:column; }
+  nav a { padding:4px 9px; }
+}
