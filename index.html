@@ -4,12 +4,40 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>여행을 떠나자</title>
-  <link rel="stylesheet" href="style.css?v=8" />
+  <link rel="stylesheet" href="style.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+  <!-- SVG 아이콘 심볼 정의 -->
+  <svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+    <symbol id="icon-edit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+    </symbol>
+    <symbol id="icon-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="3 6 5 6 21 6"/>
+      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+    </symbol>
+    <symbol id="icon-map" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+      <circle cx="12" cy="10" r="3"/>
+    </symbol>
+    <symbol id="icon-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+    </symbol>
+    <symbol id="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="20 6 9 17 4 12"/>
+    </symbol>
+    <symbol id="icon-external" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+      <polyline points="15 3 21 3 21 9"/>
+      <line x1="10" y1="14" x2="21" y2="3"/>
+    </symbol>
+  </svg>
 </head>
 <body>
 
@@ -96,17 +124,19 @@
           <label>📍 여행지</label>
           <div class="info-location-row">
             <input class="info-editable" id="trip-location-input" placeholder="도시, 나라" onblur="saveTripFieldLocation(this.value)" />
-            <button class="map-entry-btn" id="map-entry-btn" onclick="onMapEntryBtnClick()" title="지도 연결">🗺️</button>
+            <button class="map-entry-btn" id="map-entry-btn" onclick="onMapEntryBtnClick()" title="지도 연결">
+              <svg width="15" height="15"><use href="#icon-map"/></svg>
+            </button>
           </div>
         </div>
         <div class="info-item">
           <label>💰 총 경비</label>
-          <strong id="trip-budget-display" style="font-size:0.88rem;font-weight:800;color:var(--pd)">0원</strong>
+          <strong id="trip-budget-display" style="font-size:0.9rem;font-weight:800;color:var(--pd)">0원</strong>
         </div>
       </div>
       <div class="currency-row">
         <label>💱 환율</label>
-        <select id="currency-select" style="width:auto;padding:4px 8px" onchange="onCurrencyChange(this.value)">
+        <select id="currency-select" style="width:auto;padding:5px 10px" onchange="onCurrencyChange(this.value)">
           <option value="">외화 선택 안함</option>
           <option value="JPY">엔화 (JPY)</option>
           <option value="EUR">유로 (EUR)</option>
@@ -127,7 +157,9 @@
       <div class="card-header">
         <h3>🎫 예약 목록</h3>
         <div style="display:flex;gap:6px;align-items:center">
-          <button class="icon-btn" id="res-edit-mode-btn" onclick="toggleResEditMode()" title="편집 모드">✏️</button>
+          <button class="icon-btn" id="res-edit-mode-btn" onclick="toggleResEditMode()" title="편집 모드">
+            <svg width="15" height="15"><use href="#icon-edit"/></svg>
+          </button>
           <button class="btn btn-outline btn-sm" onclick="openResForm('항공')">✈ 항공 추가</button>
           <button class="btn btn-outline btn-sm" onclick="openResForm('숙소')">🏨 숙소 추가</button>
           <button class="btn btn-outline btn-sm" onclick="openResForm('기타')">＋ 기타 추가</button>
@@ -137,7 +169,7 @@
         <!-- 예약 편집 배너 -->
         <div id="res-edit-banner" class="edit-banner hidden">
           <div class="edit-banner-left">
-            <label style="display:flex;align-items:center;gap:5px;font-size:0.78rem;cursor:pointer">
+            <label style="display:flex;align-items:center;gap:5px;font-size:0.79rem;cursor:pointer">
               <input type="checkbox" id="res-select-all" onchange="toggleSelectAll('res',this)" style="width:15px;height:15px;accent-color:var(--pd)" />
               전체선택
             </label>
@@ -153,19 +185,19 @@
           <div class="res-col">
             <div class="res-col-header">✈️ 항공</div>
             <div id="res-form-항공" class="res-add-form hidden"></div>
-            <div id="res-list-항공"><div class="empty-msg" style="padding:12px 0;font-size:0.78rem">항공 예약 없음</div></div>
+            <div id="res-list-항공"><div class="empty-msg" style="padding:14px 0;font-size:0.8rem">항공 예약 없음</div></div>
           </div>
           <!-- 숙소 -->
           <div class="res-col">
             <div class="res-col-header">🏨 숙소</div>
             <div id="res-form-숙소" class="res-add-form hidden"></div>
-            <div id="res-list-숙소"><div class="empty-msg" style="padding:12px 0;font-size:0.78rem">숙소 예약 없음</div></div>
+            <div id="res-list-숙소"><div class="empty-msg" style="padding:14px 0;font-size:0.8rem">숙소 예약 없음</div></div>
           </div>
           <!-- 기타 -->
           <div class="res-col">
             <div class="res-col-header">📋 기타</div>
             <div id="res-form-기타" class="res-add-form hidden"></div>
-            <div id="res-list-기타"><div class="empty-msg" style="padding:12px 0;font-size:0.78rem">기타 예약 없음</div></div>
+            <div id="res-list-기타"><div class="empty-msg" style="padding:14px 0;font-size:0.8rem">기타 예약 없음</div></div>
           </div>
         </div>
       </div>
@@ -176,7 +208,9 @@
       <div class="section-header">
         <span class="section-title">📅 여행 일정</span>
         <div class="section-toolbar">
-          <button class="icon-btn" id="schedule-edit-mode-btn" onclick="toggleScheduleEditMode()" title="편집 모드">✏️</button>
+          <button class="icon-btn" id="schedule-edit-mode-btn" onclick="toggleScheduleEditMode()" title="편집 모드">
+            <svg width="15" height="15"><use href="#icon-edit"/></svg>
+          </button>
           <div class="view-toggle">
             <button class="btn btn-outline btn-sm view-active" id="view-table-btn" onclick="setView('table')">목록</button>
             <button class="btn btn-outline btn-sm" id="view-time-btn" onclick="setView('timetable')">시간표</button>
@@ -187,7 +221,7 @@
         <!-- 일정 편집 배너 -->
         <div id="edit-mode-banner" class="edit-banner hidden">
           <div class="edit-banner-left">
-            <label style="display:flex;align-items:center;gap:5px;font-size:0.78rem;cursor:pointer">
+            <label style="display:flex;align-items:center;gap:5px;font-size:0.79rem;cursor:pointer">
               <input type="checkbox" id="sch-select-all" onchange="toggleSelectAll('schedule',this)" style="width:15px;height:15px;accent-color:var(--pd)" />
               전체선택
             </label>
@@ -205,13 +239,13 @@
               <thead>
                 <tr>
                   <th style="width:72px">분류</th>
-                  <th style="width:52px">날짜</th>
-                  <th style="width:52px">시간</th>
+                  <th style="width:54px">날짜</th>
+                  <th style="width:54px">시간</th>
                   <th style="width:140px">장소</th>
                   <th>내용</th>
                   <th style="width:90px">교통편</th>
                   <th style="width:120px">비고</th>
-                  <th style="width:28px;text-align:center">🗺️</th>
+                  <th style="width:32px;text-align:center">지도</th>
                   <th id="sch-action-col" style="width:0;padding:0;text-align:center"></th>
                 </tr>
               </thead>
@@ -254,14 +288,16 @@
             <span id="expense-summary-display" class="summary-val">합계 0원</span>
             <span class="hint" id="rate-hint"></span>
           </div>
-          <button class="icon-btn" id="expense-edit-mode-btn" onclick="toggleExpenseEditMode()" title="편집 모드">✏️</button>
+          <button class="icon-btn" id="expense-edit-mode-btn" onclick="toggleExpenseEditMode()" title="편집 모드">
+            <svg width="15" height="15"><use href="#icon-edit"/></svg>
+          </button>
         </div>
       </div>
       <div class="section-body">
         <!-- 지출 편집 배너 -->
         <div id="expense-edit-banner" class="edit-banner hidden">
           <div class="edit-banner-left">
-            <label style="display:flex;align-items:center;gap:5px;font-size:0.78rem;cursor:pointer">
+            <label style="display:flex;align-items:center;gap:5px;font-size:0.79rem;cursor:pointer">
               <input type="checkbox" id="exp-select-all" onchange="toggleSelectAll('expense',this)" style="width:15px;height:15px;accent-color:var(--pd)" />
               전체선택
             </label>
@@ -278,7 +314,7 @@
             <thead>
               <tr>
                 <th style="width:72px">분류</th>
-                <th style="width:60px">날짜</th>
+                <th style="width:62px">날짜</th>
                 <th style="min-width:140px">제목</th>
                 <th style="text-align:right;width:90px">원화</th>
                 <th style="text-align:right;width:80px" id="foreign-col-header">외화</th>
@@ -323,11 +359,11 @@
       <div class="section-header">
         <span class="section-title">⭐ 가고싶은 곳</span>
         <div style="display:flex;align-items:center;gap:8px">
-          <input type="text" id="trip-bucket-region" placeholder="지역 검색" style="width:120px;padding:5px 10px;font-size:0.78rem;border-radius:8px;border:1.5px solid var(--border)" oninput="onTripBucketFilterChange()" />
+          <input type="text" id="trip-bucket-region" placeholder="지역 검색" style="width:120px;padding:6px 11px;font-size:0.79rem;border-radius:8px;border:1.5px solid var(--border)" oninput="onTripBucketFilterChange()" />
           <button class="btn btn-primary btn-sm" onclick="openTripBucketModal()">＋ 추가</button>
         </div>
       </div>
-      <div class="section-body" style="padding:14px 16px">
+      <div class="section-body" style="padding:16px 18px">
         <div id="trip-bucket-board" class="wish-grid"></div>
       </div>
     </div>
@@ -341,7 +377,9 @@
         <p class="page-sub">가보고 싶은 장소를 모아두는 곳</p>
       </div>
       <div style="display:flex;gap:8px;align-items:center">
-        <button class="icon-btn" id="bucket-edit-mode-btn" onclick="toggleBucketEditMode()" title="편집 모드">✏️</button>
+        <button class="icon-btn" id="bucket-edit-mode-btn" onclick="toggleBucketEditMode()" title="편집 모드">
+          <svg width="15" height="15"><use href="#icon-edit"/></svg>
+        </button>
         <button class="btn btn-primary btn-sm" onclick="openBucketAddModal()">＋ 추가</button>
       </div>
     </div>
@@ -354,9 +392,9 @@
     </div>
 
     <!-- 버킷 편집모드 배너 -->
-    <div id="bucket-edit-banner" class="edit-banner hidden" style="margin-bottom:10px">
+    <div id="bucket-edit-banner" class="edit-banner hidden" style="margin-bottom:12px">
       <div class="edit-banner-left">
-        <label style="display:flex;align-items:center;gap:5px;font-size:0.78rem;cursor:pointer">
+        <label style="display:flex;align-items:center;gap:5px;font-size:0.79rem;cursor:pointer">
           <input type="checkbox" id="bkt-select-all" onchange="toggleSelectAll('bucket',this)" style="width:15px;height:15px;accent-color:var(--pd)" />
           전체선택
         </label>
@@ -390,14 +428,14 @@
 
   <!-- ====== SETTINGS ====== -->
   <div id="page-settings" class="page">
-    <h1 class="page-title" style="margin-bottom:18px">설정 ⚙️</h1>
+    <h1 class="page-title" style="margin-bottom:20px">설정 ⚙️</h1>
 
     <div class="settings-card">
       <h3>💾 데이터 현황</h3>
       <div class="storage-bar-wrap">
         <div class="storage-bar-label"><span>Firestore 문서 수</span><span id="storage-usage-text">계산 중...</span></div>
         <div class="storage-bar-outer"><div class="storage-bar-inner" id="storage-bar-inner" style="width:0%"></div></div>
-        <p class="hint" style="margin-top:5px">무료 플랜 기준 쓰기 20,000회/일, 읽기 50,000회/일</p>
+        <p class="hint" style="margin-top:6px">무료 플랜 기준 쓰기 20,000회/일, 읽기 50,000회/일</p>
       </div>
       <button class="btn btn-outline btn-sm" onclick="seedSampleData()" id="seed-btn">🗾 삿포로 샘플 데이터 가져오기</button>
     </div>
@@ -414,12 +452,12 @@
         <button class="theme-btn" data-theme="rose" onclick="setTheme('rose')"><div class="theme-swatch" style="background:#FDA4AF"></div><span>로즈</span></button>
         <button class="theme-btn" data-theme="sky" onclick="setTheme('sky')"><div class="theme-swatch" style="background:#7DD3FC"></div><span>하늘</span></button>
       </div>
-      <p class="hint" style="margin-top:10px" id="theme-current-label">현재 테마: 주황</p>
+      <p class="hint" style="margin-top:12px" id="theme-current-label">현재 테마: 파랑</p>
     </div>
 
     <div class="settings-card">
       <h3>🏷️ 분류 설정</h3>
-      <p class="hint" style="margin-bottom:14px">설정한 항목이 입력 폼의 분류 선택지에 표시됩니다.</p>
+      <p class="hint" style="margin-bottom:16px">설정한 항목이 입력 폼의 분류 선택지에 표시됩니다.</p>
       <div class="cat-manage-section">
         <div class="cat-manage-title">📅 여행일정 분류</div>
         <div class="cat-tags" id="cat-tags-schedule"></div>
@@ -428,7 +466,7 @@
           <button class="btn btn-primary btn-sm" onclick="addCategory('schedule')">추가</button>
         </div>
       </div>
-      <div class="cat-manage-section" style="margin-top:14px">
+      <div class="cat-manage-section" style="margin-top:16px">
         <div class="cat-manage-title">💸 지출 분류</div>
         <div class="cat-tags" id="cat-tags-expense"></div>
         <div class="cat-add-row">
@@ -436,7 +474,7 @@
           <button class="btn btn-primary btn-sm" onclick="addCategory('expense')">추가</button>
         </div>
       </div>
-      <div class="cat-manage-section" style="margin-top:14px">
+      <div class="cat-manage-section" style="margin-top:16px">
         <div class="cat-manage-title">⭐ 버킷플레이스 유형</div>
         <div class="cat-tags" id="cat-tags-bucket"></div>
         <div class="cat-add-row">
@@ -448,7 +486,7 @@
 
     <div class="settings-card">
       <h3>👤 계정</h3>
-      <div id="settings-user-info" style="font-size:0.85rem;color:var(--text-muted);margin-bottom:10px">로그인 정보 없음</div>
+      <div id="settings-user-info" style="font-size:0.86rem;color:var(--text-muted);margin-bottom:12px">로그인 정보 없음</div>
       <button class="btn btn-outline btn-sm" onclick="handleAuth()">로그아웃</button>
     </div>
   </div>
@@ -579,16 +617,19 @@
 <div id="modal-map-entry" class="modal-overlay hidden">
   <div class="modal" style="max-width:500px">
     <div class="modal-header">
-      <h2>🗺️ 지도 연결</h2>
+      <h2>
+        <svg width="18" height="18" style="vertical-align:-3px;margin-right:4px"><use href="#icon-map"/></svg>
+        지도 연결
+      </h2>
       <button class="modal-close" onclick="closeModal('modal-map-entry')">✕</button>
     </div>
-    <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:10px">
+    <p style="font-size:0.83rem;color:var(--text-muted);margin-bottom:12px">
       구글 지도 링크 또는 HTML 임베드 코드를 붙여넣으세요.<br>
-      <span style="font-size:0.74rem">(지도 공유 → "지도 퍼가기" 에서 복사한 &lt;iframe&gt; 코드도 가능)</span>
+      <span style="font-size:0.75rem">(지도 공유 → "지도 퍼가기" 에서 복사한 &lt;iframe&gt; 코드도 가능)</span>
     </p>
     <textarea id="map-entry-input" placeholder="https://maps.google.com/...&#10;또는&#10;&lt;iframe src=&quot;...&quot;&gt;&lt;/iframe&gt;" rows="4"></textarea>
     <div id="map-entry-preview-row" class="hidden" style="margin-bottom:10px">
-      <a id="map-entry-preview-link" href="#" target="_blank" rel="noreferrer" style="font-size:0.76rem;color:var(--pd);word-break:break-all"></a>
+      <a id="map-entry-preview-link" href="#" target="_blank" rel="noreferrer" style="font-size:0.77rem;color:var(--pd);word-break:break-all"></a>
     </div>
     <div class="form-actions" style="margin-top:0">
       <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-map-entry')">취소</button>
@@ -600,29 +641,35 @@
 
 <!-- Modal: 링크 미리보기 -->
 <div id="modal-link-preview" class="modal-overlay hidden">
-  <div class="modal" style="max-width:520px">
+  <div class="modal" style="max-width:540px">
     <div class="modal-header">
-      <h2><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg> 링크</h2>
+      <h2>
+        <svg width="16" height="16" style="vertical-align:-2px;margin-right:5px"><use href="#icon-link"/></svg>
+        링크
+      </h2>
       <button class="modal-close" onclick="closeModal('modal-link-preview')">✕</button>
     </div>
 
     <!-- 지도 iframe 미리보기 -->
     <div id="link-iframe-wrap">
-      <p id="link-preview-url" style="font-size:0.75rem;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:10px;max-width:100%"></p>
-      <iframe id="link-preview-frame" src="" class="map-modal-frame" loading="lazy" style="border-radius:10px;border:1px solid var(--border)"></iframe>
-      <div style="text-align:center;margin-top:12px">
-        <a id="link-preview-anchor" href="#" target="_blank" rel="noreferrer" class="btn btn-primary btn-sm">↗ 새 탭에서 열기</a>
+      <p id="link-preview-url" style="font-size:0.76rem;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:10px;max-width:100%"></p>
+      <iframe id="link-preview-frame" src="" class="map-modal-frame" loading="lazy" style="border-radius:12px;border:1.5px solid var(--border)"></iframe>
+      <div style="text-align:center;margin-top:14px">
+        <a id="link-preview-anchor" href="#" target="_blank" rel="noreferrer" class="btn btn-primary btn-sm">
+          <svg width="13" height="13"><use href="#icon-external"/></svg>
+          새 탭에서 열기
+        </a>
       </div>
     </div>
 
     <!-- 일반 URL (iframe 불가) -->
-    <div id="link-external-card" class="hidden" style="text-align:center;padding:28px 12px 16px">
-      <div style="width:52px;height:52px;border-radius:14px;background:var(--pl,#eef2ff);display:flex;align-items:center;justify-content:center;margin:0 auto 14px">
-        <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--pd,#4f46e5)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+    <div id="link-external-card" class="hidden" style="text-align:center;padding:32px 12px 18px">
+      <div style="width:56px;height:56px;border-radius:16px;background:var(--pl,#eef2ff);display:flex;align-items:center;justify-content:center;margin:0 auto 16px">
+        <svg width="28" height="28" style="color:var(--pd)"><use href="#icon-external"/></svg>
       </div>
-      <p id="link-external-url" style="font-size:0.78rem;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;margin-bottom:18px;padding:0 8px"></p>
-      <a id="link-external-anchor" href="#" target="_blank" rel="noreferrer" class="btn btn-primary" style="display:inline-flex;align-items:center;gap:6px">
-        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+      <p id="link-external-url" style="font-size:0.79rem;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;margin-bottom:20px;padding:0 8px"></p>
+      <a id="link-external-anchor" href="#" target="_blank" rel="noreferrer" class="btn btn-primary" style="display:inline-flex;align-items:center;gap:7px">
+        <svg width="14" height="14"><use href="#icon-external"/></svg>
         새 탭에서 열기
       </a>
     </div>
