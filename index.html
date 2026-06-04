@@ -602,13 +602,29 @@
 <div id="modal-link-preview" class="modal-overlay hidden">
   <div class="modal" style="max-width:520px">
     <div class="modal-header">
-      <h2>🔗 링크</h2>
+      <h2><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg> 링크</h2>
       <button class="modal-close" onclick="closeModal('modal-link-preview')">✕</button>
     </div>
-    <p id="link-preview-url" style="font-size:0.78rem;color:var(--text-muted);word-break:break-all;margin-bottom:14px"></p>
-    <iframe id="link-preview-frame" src="" class="map-modal-frame" loading="lazy" style="border-radius:10px;border:1px solid var(--border)"></iframe>
-    <div style="text-align:center;margin-top:12px">
-      <a id="link-preview-anchor" href="#" target="_blank" rel="noreferrer" class="btn btn-primary btn-sm">🔗 새 탭에서 열기</a>
+
+    <!-- 지도 iframe 미리보기 -->
+    <div id="link-iframe-wrap">
+      <p id="link-preview-url" style="font-size:0.75rem;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:10px;max-width:100%"></p>
+      <iframe id="link-preview-frame" src="" class="map-modal-frame" loading="lazy" style="border-radius:10px;border:1px solid var(--border)"></iframe>
+      <div style="text-align:center;margin-top:12px">
+        <a id="link-preview-anchor" href="#" target="_blank" rel="noreferrer" class="btn btn-primary btn-sm">↗ 새 탭에서 열기</a>
+      </div>
+    </div>
+
+    <!-- 일반 URL (iframe 불가) -->
+    <div id="link-external-card" class="hidden" style="text-align:center;padding:28px 12px 16px">
+      <div style="width:52px;height:52px;border-radius:14px;background:var(--pl,#eef2ff);display:flex;align-items:center;justify-content:center;margin:0 auto 14px">
+        <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--pd,#4f46e5)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+      </div>
+      <p id="link-external-url" style="font-size:0.78rem;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;margin-bottom:18px;padding:0 8px"></p>
+      <a id="link-external-anchor" href="#" target="_blank" rel="noreferrer" class="btn btn-primary" style="display:inline-flex;align-items:center;gap:6px">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        새 탭에서 열기
+      </a>
     </div>
   </div>
 </div>
