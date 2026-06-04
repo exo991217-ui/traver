@@ -160,9 +160,6 @@
           <button class="icon-btn" id="res-edit-mode-btn" onclick="toggleResEditMode()" title="편집 모드">
             <svg width="15" height="15"><use href="#icon-edit"/></svg>
           </button>
-          <button class="btn btn-outline btn-sm" onclick="openResForm('항공')">✈ 항공 추가</button>
-          <button class="btn btn-outline btn-sm" onclick="openResForm('숙소')">🏨 숙소 추가</button>
-          <button class="btn btn-outline btn-sm" onclick="openResForm('기타')">＋ 기타 추가</button>
         </div>
       </div>
       <div class="card-body res-card-body">
@@ -183,19 +180,28 @@
         <div class="res-3col">
           <!-- 항공 -->
           <div class="res-col">
-            <div class="res-col-header">✈️ 항공</div>
+            <div class="res-col-header">
+              <span>✈️ 항공</span>
+              <button class="res-col-add-btn" onclick="openResForm('항공')" title="항공 추가">＋</button>
+            </div>
             <div id="res-form-항공" class="res-add-form hidden"></div>
             <div id="res-list-항공"><div class="empty-msg" style="padding:14px 0;font-size:0.8rem">항공 예약 없음</div></div>
           </div>
           <!-- 숙소 -->
           <div class="res-col">
-            <div class="res-col-header">🏨 숙소</div>
+            <div class="res-col-header">
+              <span>🏨 숙소</span>
+              <button class="res-col-add-btn" onclick="openResForm('숙소')" title="숙소 추가">＋</button>
+            </div>
             <div id="res-form-숙소" class="res-add-form hidden"></div>
             <div id="res-list-숙소"><div class="empty-msg" style="padding:14px 0;font-size:0.8rem">숙소 예약 없음</div></div>
           </div>
           <!-- 기타 -->
           <div class="res-col">
-            <div class="res-col-header">📋 기타</div>
+            <div class="res-col-header">
+              <span>📋 기타</span>
+              <button class="res-col-add-btn" onclick="openResForm('기타')" title="기타 추가">＋</button>
+            </div>
             <div id="res-form-기타" class="res-add-form hidden"></div>
             <div id="res-list-기타"><div class="empty-msg" style="padding:14px 0;font-size:0.8rem">기타 예약 없음</div></div>
           </div>
