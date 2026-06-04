@@ -434,11 +434,20 @@ function openMapModal(notesUrl, locationName) {
   const frame = document.getElementById("map-modal-frame");
 
   title.textContent = "🗺️ " + (locationName || "지도");
-  anchor.href = notesUrl;
-  anchor.textContent = notesUrl;
 
-  const embedUrl = buildMapEmbedUrl(notesUrl);
-  frame.src = embedUrl || "";
+  if (notesUrl) {
+    anchor.href = notesUrl;
+    anchor.textContent = notesUrl;
+    anchor.style.display = "";
+    frame.src = buildMapEmbedUrl(notesUrl);
+  } else {
+    // URL 없으면 장소명으로 구글 지도 검색
+    const q = encodeURIComponent(locationName || "");
+    anchor.href = "https://maps.google.com/maps?q=" + q;
+    anchor.textContent = locationName ? locationName + " 검색하기 ↗" : "";
+    anchor.style.display = "";
+    frame.src = "https://maps.google.com/maps?q=" + q + "&output=embed&hl=ko";
+  }
 
   openModal("modal-map-view");
 }
@@ -494,6 +503,25 @@ function isUrl(str) {
   return typeof str === "string" && (str.startsWith("http://") || str.startsWith("https://"));
 }
 
+// [NEW] 지도 버튼 HTML 생성 — onclick 속성에 특수문자 안전하게 처리
+function buildMapBtn(s) {
+  const hasLink = isUrl(s.notes);
+  // data-* 속성으로 값을 전달, onclick에서 읽어옴
+  const cls = "map-icon-btn" + (hasLink ? " has-link" : "");
+  const title = hasLink ? "지도 링크 열기" : "장소 검색";
+  // HTML 특수문자를 속성에 안전하게 삽입하기 위해 encodeURIComponent 사용
+  const dataUrl  = hasLink ? encodeURIComponent(s.notes) : "";
+  const dataLoc  = encodeURIComponent(s.location || "");
+  return `<button class="${cls}" data-url="${dataUrl}" data-loc="${dataLoc}" onclick="onMapBtnClick(this)" title="${title}">🗺️</button>`;
+}
+
+// [NEW] 지도 버튼 클릭 핸들러 (data 속성으로 값 수신)
+function onMapBtnClick(btn) {
+  const url = decodeURIComponent(btn.dataset.url || "");
+  const loc = decodeURIComponent(btn.dataset.loc || "");
+  openMapModal(url || null, loc);
+}
+
 function renderScheduleTable(items) {
   const tbody = document.getElementById("schedule-tbody");
   const catEl = document.getElementById("sch-add-cat");
@@ -513,8 +541,7 @@ function renderScheduleTable(items) {
     tbody.innerHTML = items.map(s => {
       if (scheduleEditId === s.id) return renderScheduleEditRow(s);
       const catBadge = s.category ? `<span class="badge badge-${s.category.replace(/\//g,"\\/")}"> ${s.category}</span>` : "-";
-      const hasLink = isUrl(s.notes);
-      const mapBtn = `<button class="map-icon-btn${hasLink?" has-link":""}" onclick="openMapModal(${hasLink ? `'${s.notes.replace(/'/g,"\\'")}','${(s.location||"").replace(/'/g,"\\'")}'"  : `'https://maps.google.com/maps?q=${encodeURIComponent(s.location||"")}&hl=ko','${(s.location||"").replace(/'/g,"\\'")}'"` })" title="${hasLink ? "지도 링크 열기" : "장소 검색"}">🗺️</button>`;
+      const mapBtn = buildMapBtn(s);
       return `<tr>
         <td>${catBadge}</td>
         <td style="white-space:nowrap">${s.date||"-"}</td>
@@ -887,8 +914,7 @@ function bucketRef() { return db.collection("users").doc(currentUser.uid).collec
 function onTripBucketFilterChange() {
   const val = document.getElementById("trip-bucket-region")?.value || "";
   localStorage.setItem("trip_bucket_region", val);
-  renderTripBucket(scheduleItems.length ? undefined : allBucketItems);
-  loadTripBucketItems();
+  renderTripBucket(allBucketItems);
 }
 
 async function loadTripBucketItems() {
