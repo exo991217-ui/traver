@@ -1,5 +1,5 @@
 // ============================================================
-// 여행을 떠나자 — app.js (수정본 v5)
+// 여행을 떠나자 — app.js (수정본 v6)
 // ============================================================
 
 const firebaseConfig = {
@@ -28,6 +28,8 @@ let expenseEditId = null;
 let expenseEditMode = false;
 let expenseAddOpen = false;
 let resEditMode = false;
+let resEditItemId = null;      // 예약 인라인 편집 중인 아이템 id
+let currentResItems = [];      // 현재 로드된 예약 목록
 let bucketEditId = null;
 let bucketEditMode = false;
 let bucketAddModalEditId = null;
@@ -35,12 +37,17 @@ let tripBucketEditId = null;
 let currentView = "table";
 let tripFilter = "all";
 let allBucketItems = [];
-let bucketRegionTab = "all"; // all / domestic / overseas
+let bucketRegionTab = "all";
+
+// 편집 모드 dirty 추적 (편집된 행 자동 체크)
+let dirtyScheduleIds = new Set();
+let dirtyExpenseIds = new Set();
+let dirtyBucketIds = new Set();
 
 // 버킷 정렬/필터 상태
 let bucketSortCol = "";
 let bucketSortDir = "asc";
-let bucketColFilters = {}; // { country: "일본", ... }
+let bucketColFilters = {};
 let activeColMenu = null;
 
 const CURRENCY_SYMBOLS = { JPY: "¥", EUR: "€", USD: "$", CNY: "¥", THB: "฿", VND: "₫", AUD: "A$" };
@@ -277,29 +284,26 @@ async function deleteTrip(id) {
 async function openTrip(tripId) {
   showPage("trip");
   currentTripId = tripId;
-  scheduleEditId = null;
-  scheduleEditMode = false;
-  scheduleAddOpen = false;
-  expenseEditId = null;
-  expenseEditMode = false;
-  expenseAddOpen = false;
-  resEditMode = false;
+  scheduleEditId = null; scheduleEditMode = false; scheduleAddOpen = false;
+  expenseEditId = null; expenseEditMode = false; expenseAddOpen = false;
+  resEditMode = false; resEditItemId = null;
+  dirtyScheduleIds.clear(); dirtyExpenseIds.clear(); dirtyBucketIds.clear();
+
   const doc = await tripsRef().doc(tripId).get();
   currentTrip = { id: doc.id, ...doc.data() };
   renderTripInfo();
   refreshCategorySelects();
   loadSchedules(); loadExpenses(); loadReservations(); loadTripBucketItems();
-  // 편집 모드 초기화
-  const btn = document.getElementById("schedule-edit-mode-btn");
-  if (btn) btn.classList.remove("active");
-  const banner = document.getElementById("edit-mode-banner");
-  if (banner) banner.classList.add("hidden");
-  const table = document.getElementById("schedule-table");
-  if (table) table.classList.remove("edit-mode-on");
-  const expBtn = document.getElementById("expense-edit-mode-btn");
-  if (expBtn) expBtn.classList.remove("active");
-  const expBanner = document.getElementById("expense-edit-banner");
-  if (expBanner) expBanner.classList.add("hidden");
+
+  // 편집 모드 UI 초기화
+  ["schedule-edit-mode-btn","expense-edit-mode-btn","res-edit-mode-btn"].forEach(id => {
+    document.getElementById(id)?.classList.remove("active");
+  });
+  ["edit-mode-banner","expense-edit-banner","res-edit-banner"].forEach(id => {
+    document.getElementById(id)?.classList.add("hidden");
+  });
+  document.getElementById("schedule-table")?.classList.remove("edit-mode-on");
+  document.getElementById("expense-table")?.classList.remove("edit-mode-on");
 }
 
 function renderTripInfo() {
@@ -382,7 +386,9 @@ function editRate() {
   updateCurrencyDisplay(); loadExpenses();
 }
 
-// ---- 지도 링크 (여행지 우측 아이콘) ----
+// ============================================================
+// 지도 링크 (여행지 우측 아이콘) — HTML embed 지원
+// ============================================================
 function openMapEntryModal() {
   const inp = document.getElementById("map-entry-input");
   if (inp) inp.value = currentTrip?.mapLink || "";
@@ -392,24 +398,38 @@ function openMapEntryModal() {
 }
 
 function updateMapEntryPreview() {
-  const val = document.getElementById("map-entry-input")?.value.trim() || "";
+  const raw = document.getElementById("map-entry-input")?.value.trim() || "";
+  const parsed = parseMapInput(raw);
   const row = document.getElementById("map-entry-preview-row");
   const link = document.getElementById("map-entry-preview-link");
-  if (val && isUrl(val)) {
+  if (parsed) {
     row.classList.remove("hidden");
-    link.href = val; link.textContent = val;
+    link.href = parsed; link.textContent = parsed;
   } else {
     row.classList.add("hidden");
   }
 }
 
+// URL 또는 HTML iframe embed code에서 map URL 추출
+function parseMapInput(raw) {
+  if (!raw) return null;
+  raw = raw.trim();
+  // iframe embed code (e.g. <iframe src="...">)
+  const srcMatch = raw.match(/src=["']([^"']+)["']/);
+  if (srcMatch) return srcMatch[1];
+  // 일반 URL
+  if (raw.startsWith("http://") || raw.startsWith("https://")) return raw;
+  return null;
+}
+
 async function saveTripMapLink() {
-  const url = document.getElementById("map-entry-input").value.trim();
-  currentTrip.mapLink = url || null;
-  await tripsRef().doc(currentTripId).update({ mapLink: url || null });
+  const raw = document.getElementById("map-entry-input").value.trim();
+  const parsed = parseMapInput(raw) || (raw || null);
+  currentTrip.mapLink = parsed || null;
+  await tripsRef().doc(currentTripId).update({ mapLink: parsed || null });
   closeModal("modal-map-entry");
   updateMapEntryBtn();
-  if (url) showToast("지도 연결 완료 🗺️");
+  if (parsed) showToast("지도 연결 완료 🗺️");
   else showToast("지도 연결 해제됨");
 }
 
@@ -422,10 +442,8 @@ async function clearTripMapLink() {
   showToast("지도 연결 해제됨");
 }
 
-// 지도 아이콘 클릭 (여행지 옆) — 지도가 있으면 모달 오픈, 없으면 입력 모달
 function onMapEntryBtnClick() {
   if (currentTrip?.mapLink) {
-    // 지도 있으면 보기 모달
     openMapModal(currentTrip.mapLink, [currentTrip.city, currentTrip.country].filter(Boolean).join(" "));
   } else {
     openMapEntryModal();
@@ -445,11 +463,12 @@ function setView(view) {
 // ============================================================
 function buildMapEmbedUrl(raw) {
   if (!raw) return "";
+  // 이미 embed URL이면 그대로 사용
+  if (raw.includes("output=embed") || raw.includes("/embed?")) return raw;
   if (raw.includes("google.com/maps/d/")) {
     const m = raw.match(/mid=([^&]+)/);
     if (m) return "https://www.google.com/maps/d/embed?mid=" + m[1];
   }
-  if (raw.includes("output=embed")) return raw;
   const q = raw.match(/[?&]q=([^&]+)/);
   if (q) return `https://maps.google.com/maps?q=${q[1]}&output=embed&hl=ko`;
   const ll = raw.match(/@([-\d.]+),([-\d.]+)/);
@@ -475,8 +494,6 @@ function openMapModal(notesUrl, locationName) {
   openModal("modal-map-view");
 }
 
-// 일반 링크 미리보기 모달
-// Google Maps 등은 iframe 임베드를 거부하므로 새 탭으로 직접 오픈
 function openLinkModal(encodedUrl) {
   const url = decodeURIComponent(encodedUrl);
   window.open(url, "_blank", "noreferrer");
@@ -489,15 +506,14 @@ function isUrl(str) {
   return typeof str === "string" && (str.startsWith("http://") || str.startsWith("https://"));
 }
 
-// 날짜 표시: yyyy-mm-dd → dd/mm
+// 날짜 표시: yyyy-mm-dd → mm/dd
 function formatDateShort(dateStr) {
   if (!dateStr) return "-";
   const parts = dateStr.split("-");
-  if (parts.length === 3) return `${parts[2]}/${parts[1]}`;
+  if (parts.length === 3) return `${parts[1]}/${parts[2]}`;
   return dateStr;
 }
 
-// 링크 렌더링: URL이면 아이콘, 아니면 텍스트
 function renderLink(val, title) {
   if (!val) return "-";
   if (isUrl(val)) {
@@ -507,15 +523,14 @@ function renderLink(val, title) {
   return escHtml(val);
 }
 
-// 교통편 색 뱃지
 function getTransBadge(trans) {
   if (!trans) return "-";
   const t = trans.toLowerCase();
   let cls = "badge-trans-other";
-  if (t.includes("기차") || t.includes("jr") || t.includes("열차") || t.includes("기철")) cls = "badge-trans-train";
+  if (t.includes("기차") || t.includes("jr") || t.includes("열차")) cls = "badge-trans-train";
   else if (t.includes("버스")) cls = "badge-trans-bus";
   else if (t.includes("택시")) cls = "badge-trans-taxi";
-  else if (t.includes("도보") || t.includes("걷기") || t.includes("도")) cls = "badge-trans-walk";
+  else if (t.includes("도보") || t.includes("걷기")) cls = "badge-trans-walk";
   else if (t.includes("비행") || t.includes("항공") || t.includes("flight")) cls = "badge-trans-flight";
   else if (t.includes("지하철") || t.includes("metro") || t.includes("subway")) cls = "badge-trans-subway";
   else if (t.includes("배") || t.includes("페리") || t.includes("선박")) cls = "badge-trans-ship";
@@ -529,10 +544,92 @@ function escHtml(str) {
 }
 
 // ============================================================
+// 체크박스 공통 유틸
+// ============================================================
+function markDirty(type, id) {
+  const prefix = type === "schedule" ? "sch" : type === "expense" ? "exp" : "bkt";
+  if (type === "schedule") dirtyScheduleIds.add(id);
+  else if (type === "expense") dirtyExpenseIds.add(id);
+  else if (type === "bucket") dirtyBucketIds.add(id);
+  const cb = document.getElementById(prefix + "-check-" + id);
+  if (cb) cb.checked = true;
+  updateCheckedCount(type);
+}
+
+function updateCheckedCount(type) {
+  const prefix = type === "schedule" ? "sch" : type === "expense" ? "exp" : type === "bucket" ? "bkt" : "res";
+  const className = prefix + "-row-check";
+  const checks = document.querySelectorAll("." + className);
+  const count = Array.from(checks).filter(c => c.checked).length;
+  const countEl = document.getElementById(prefix + "-checked-count");
+  if (countEl) countEl.textContent = count + "개 선택";
+  const allCb = document.getElementById(prefix + "-select-all");
+  if (allCb) {
+    allCb.checked = checks.length > 0 && count === checks.length;
+    allCb.indeterminate = count > 0 && count < checks.length;
+  }
+}
+
+function toggleSelectAll(type, cb) {
+  const prefix = type === "schedule" ? "sch" : type === "expense" ? "exp" : type === "bucket" ? "bkt" : "res";
+  document.querySelectorAll("." + prefix + "-row-check").forEach(c => c.checked = cb.checked);
+  updateCheckedCount(type);
+}
+
+function onRowCheckChange(type) {
+  updateCheckedCount(type);
+}
+
+function getCheckedIds(type) {
+  const prefix = type === "schedule" ? "sch" : type === "expense" ? "exp" : type === "bucket" ? "bkt" : "res";
+  return Array.from(document.querySelectorAll("." + prefix + "-row-check:checked")).map(c => c.dataset.id);
+}
+
+// 선택 항목 저장
+async function saveChecked(type) {
+  const ids = getCheckedIds(type);
+  if (!ids.length) { showToast("저장할 항목을 선택해주세요"); return; }
+  let saved = 0;
+  for (const id of ids) {
+    try {
+      if (type === "schedule") await saveEditModeRow(id, true);
+      else if (type === "expense") await saveExpenseEditModeRow(id, true);
+      else if (type === "bucket") await saveBucketEditModeRow(id, true);
+      saved++;
+    } catch(e) { console.warn("save error", id, e); }
+  }
+  showToast(saved + "개 저장 완료 ✅");
+  if (type === "schedule") { dirtyScheduleIds.clear(); loadSchedules(); }
+  else if (type === "expense") { dirtyExpenseIds.clear(); loadExpenses(); }
+  else if (type === "bucket") { dirtyBucketIds.clear(); reloadBucketAll(); }
+}
+
+// 선택 항목 삭제
+async function deleteChecked(type) {
+  const ids = getCheckedIds(type);
+  if (!ids.length) { showToast("삭제할 항목을 선택해주세요"); return; }
+  if (!confirm(ids.length + "개 항목을 삭제할까요?")) return;
+  const batch = db.batch();
+  ids.forEach(id => {
+    if (type === "schedule") batch.delete(schedulesRef().doc(id));
+    else if (type === "expense") batch.delete(expensesRef().doc(id));
+    else if (type === "bucket") batch.delete(bucketRef().doc(id));
+    else if (type === "res") batch.delete(reservationsRef().doc(id));
+  });
+  await batch.commit();
+  showToast(ids.length + "개 삭제됐어요 🗑️");
+  if (type === "schedule") { dirtyScheduleIds.clear(); loadSchedules(); }
+  else if (type === "expense") { dirtyExpenseIds.clear(); loadExpenses(); }
+  else if (type === "bucket") { dirtyBucketIds.clear(); reloadBucketAll(); }
+  else if (type === "res") { loadReservations(); }
+}
+
+// ============================================================
 // 편집 모드 토글 — 일정
 // ============================================================
 function toggleScheduleEditMode() {
   scheduleEditMode = !scheduleEditMode;
+  dirtyScheduleIds.clear();
   const btn = document.getElementById("schedule-edit-mode-btn");
   const banner = document.getElementById("edit-mode-banner");
   const table = document.getElementById("schedule-table");
@@ -540,9 +637,14 @@ function toggleScheduleEditMode() {
   if (btn) btn.classList.toggle("active", scheduleEditMode);
   if (banner) banner.classList.toggle("hidden", !scheduleEditMode);
   if (table) table.classList.toggle("edit-mode-on", scheduleEditMode);
-  if (actionCol) { actionCol.style.width = scheduleEditMode ? "90px" : "0"; actionCol.style.padding = scheduleEditMode ? "8px 9px" : "0"; }
+  if (actionCol) {
+    actionCol.textContent = scheduleEditMode ? "☑" : "";
+    actionCol.style.width = scheduleEditMode ? "34px" : "0";
+    actionCol.style.padding = scheduleEditMode ? "8px 4px" : "0";
+  }
   if (scheduleEditMode) scheduleEditId = null;
   renderScheduleTable(scheduleItems);
+  if (scheduleEditMode) updateCheckedCount("schedule");
 }
 
 // 추가 폼 토글
@@ -582,11 +684,9 @@ async function loadSchedules() {
   renderScheduleTable(items); renderTimetable(items);
 }
 
-// 지도 버튼 HTML
 function buildMapBtn(s) {
-  // mapUrl 우선, 없으면 notes의 URL 체크 (backward compat)
   const mapLink = s.mapUrl || (isUrl(s.notes) ? s.notes : null);
-  if (!mapLink) return ""; // 링크 없으면 아이콘 없음
+  if (!mapLink) return "";
   const dataUrl = encodeURIComponent(mapLink);
   const dataLoc = encodeURIComponent(s.location || "");
   return `<button class="map-icon-btn" data-url="${dataUrl}" data-loc="${dataLoc}" onclick="onMapBtnClick(this)" title="지도 열기">🗺️</button>`;
@@ -613,10 +713,8 @@ function renderScheduleTable(items) {
     tbody.innerHTML = items.map(s => renderScheduleEditModeRow(s, cats)).join("");
   } else {
     tbody.innerHTML = items.map(s => {
-      if (scheduleEditId === s.id) return renderScheduleInlineEditRow(s);
       const catBadge = s.category ? `<span class="badge badge-${s.category.replace(/\//g,"\\/")}"> ${s.category}</span>` : "-";
       const mapBtn = buildMapBtn(s);
-      // notes: URL이면 링크 아이콘, 아닌 경우 텍스트 (단, mapUrl로 저장된 경우 notes는 텍스트)
       const notesDisplay = s.mapUrl && isUrl(s.notes) ? "-" : renderLink(s.notes, "비고");
       return `<tr>
         <td>${catBadge}</td>
@@ -633,51 +731,44 @@ function renderScheduleTable(items) {
   }
 }
 
-// 편집 모드 행 (모든 셀 input)
+// 편집 모드 행 — 체크박스만, 저장/삭제 버튼 없음
 function renderScheduleEditModeRow(s, cats) {
   const catOptions = cats.map(c => `<option${c===s.category?" selected":""}>${c}</option>`).join("");
   const mapUrl = s.mapUrl || (isUrl(s.notes) ? s.notes : "");
   const notesVal = s.mapUrl ? (s.notes||"") : (isUrl(s.notes) ? "" : (s.notes||""));
+  const isChecked = dirtyScheduleIds.has(s.id);
   return `<tr class="em-row" data-id="${s.id}">
-    <td><select id="em-cat-${s.id}" style="min-width:60px"><option value="">분류</option>${catOptions}</select></td>
-    <td><input type="date" id="em-date-${s.id}" value="${s.date||""}" style="min-width:100px" /></td>
-    <td><input type="time" id="em-time-${s.id}" value="${s.time||""}" style="min-width:70px" /></td>
-    <td><input type="text" id="em-loc-${s.id}" value="${escHtml(s.location)}" placeholder="장소" /></td>
-    <td><input type="text" id="em-content-${s.id}" value="${escHtml(s.content)}" placeholder="내용" /></td>
-    <td><input type="text" id="em-trans-${s.id}" value="${escHtml(s.transportation)}" placeholder="교통편" /></td>
-    <td><input type="text" id="em-notes-${s.id}" value="${escHtml(notesVal)}" placeholder="비고" /></td>
-    <td><input type="url" id="em-mapurl-${s.id}" value="${escHtml(mapUrl)}" placeholder="지도 링크" style="min-width:100px" /></td>
-    <td style="white-space:nowrap">
-      <button class="add-btn" style="font-size:0.72rem;padding:3px 8px" onclick="saveEditModeRow('${s.id}')">저장</button>
-      <button class="em-del-btn" onclick="deleteSchedule('${s.id}')" title="삭제">🗑</button>
+    <td><select id="em-cat-${s.id}" style="min-width:60px" onchange="markDirty('schedule','${s.id}')"><option value="">분류</option>${catOptions}</select></td>
+    <td><input type="date" id="em-date-${s.id}" value="${s.date||""}" style="min-width:100px" oninput="markDirty('schedule','${s.id}')" onkeydown="handleEditKeydown(event,'schedule')" /></td>
+    <td><input type="time" id="em-time-${s.id}" value="${s.time||""}" style="min-width:70px" oninput="markDirty('schedule','${s.id}')" onkeydown="handleEditKeydown(event,'schedule')" /></td>
+    <td><input type="text" id="em-loc-${s.id}" value="${escHtml(s.location)}" placeholder="장소" oninput="markDirty('schedule','${s.id}')" onkeydown="handleEditKeydown(event,'schedule')" /></td>
+    <td><input type="text" id="em-content-${s.id}" value="${escHtml(s.content)}" placeholder="내용" oninput="markDirty('schedule','${s.id}')" onkeydown="handleEditKeydown(event,'schedule')" /></td>
+    <td><input type="text" id="em-trans-${s.id}" value="${escHtml(s.transportation)}" placeholder="교통편" oninput="markDirty('schedule','${s.id}')" onkeydown="handleEditKeydown(event,'schedule')" /></td>
+    <td><input type="text" id="em-notes-${s.id}" value="${escHtml(notesVal)}" placeholder="비고" oninput="markDirty('schedule','${s.id}')" onkeydown="handleEditKeydown(event,'schedule')" /></td>
+    <td><input type="url" id="em-mapurl-${s.id}" value="${escHtml(mapUrl)}" placeholder="지도 링크" style="min-width:100px" oninput="markDirty('schedule','${s.id}')" onkeydown="handleEditKeydown(event,'schedule')" /></td>
+    <td style="text-align:center;padding:4px 4px">
+      <input type="checkbox" class="row-check sch-row-check" id="sch-check-${s.id}" data-id="${s.id}" ${isChecked?"checked":""} onchange="onRowCheckChange('schedule')" />
     </td>
   </tr>`;
 }
 
-// 인라인 단건 편집 (편집 모드 아닌 경우 — 현재 사용 안 함)
-function renderScheduleInlineEditRow(s) {
-  const cats = getCategories("schedule");
-  const mapUrl = s.mapUrl || (isUrl(s.notes) ? s.notes : "");
-  const notesVal = s.mapUrl ? (s.notes||"") : (isUrl(s.notes) ? "" : (s.notes||""));
-  return `<tr class="edit-row">
-    <td><select id="esc-cat"><option value="">선택</option>${cats.map(c=>`<option${c===s.category?" selected":""}>${c}</option>`).join("")}</select></td>
-    <td><input type="date" id="esc-date" value="${s.date||""}" /></td>
-    <td><input type="time" id="esc-time" value="${s.time||""}" /></td>
-    <td><input type="text" id="esc-loc" value="${s.location||""}" /></td>
-    <td><input type="text" id="esc-content" value="${s.content||""}" /></td>
-    <td><input type="text" id="esc-trans" value="${s.transportation||""}" /></td>
-    <td><input type="text" id="esc-notes" value="${notesVal}" /></td>
-    <td><input type="url" id="esc-mapurl" value="${mapUrl}" placeholder="지도 링크" /></td>
-    <td style="white-space:nowrap">
-      <button class="add-btn" onclick="updateSchedule('${s.id}')">저장</button>
-      <button class="cancel-btn" onclick="cancelEditSchedule()">취소</button>
-    </td>
-  </tr>`;
+// Enter=저장, Esc=편집모드 종료
+function handleEditKeydown(event, type) {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    saveChecked(type);
+  } else if (event.key === "Escape") {
+    event.preventDefault();
+    if (type === "schedule") toggleScheduleEditMode();
+    else if (type === "expense") toggleExpenseEditMode();
+    else if (type === "bucket") toggleBucketEditMode();
+  }
 }
 
-async function saveEditModeRow(id) {
+// 단건 저장 (saveChecked에서 호출, silent=true 이면 toast 없음)
+async function saveEditModeRow(id, silent) {
   const date = document.getElementById("em-date-" + id)?.value;
-  if (!date) { showToast("날짜를 입력해주세요"); return; }
+  if (!date) { if (!silent) showToast("날짜를 입력해주세요"); return; }
   const mapUrl = document.getElementById("em-mapurl-" + id)?.value.trim() || null;
   const notesRaw = document.getElementById("em-notes-" + id)?.value.trim() || null;
   await schedulesRef().doc(id).update({
@@ -690,8 +781,7 @@ async function saveEditModeRow(id) {
     notes: notesRaw,
     mapUrl: isUrl(mapUrl) ? mapUrl : null,
   });
-  showToast("저장 완료 ✅");
-  loadSchedules();
+  if (!silent) showToast("저장 완료 ✅");
 }
 
 function startEditSchedule(id) { scheduleEditId = id; loadSchedules(); }
@@ -715,23 +805,6 @@ async function saveScheduleRow() {
   ["sch-add-cat","sch-add-time","sch-add-loc","sch-add-content","sch-add-trans","sch-add-notes","sch-add-mapurl"]
     .forEach(id => { const el = document.getElementById(id); if(el) el.value = ""; });
   loadSchedules();
-}
-
-async function updateSchedule(id) {
-  const date = document.getElementById("esc-date").value;
-  if (!date) { showToast("날짜를 입력해주세요"); return; }
-  const mapUrlRaw = document.getElementById("esc-mapurl")?.value.trim() || null;
-  await schedulesRef().doc(id).update({
-    category: document.getElementById("esc-cat").value || null,
-    date,
-    time: document.getElementById("esc-time").value || null,
-    location: document.getElementById("esc-loc").value.trim() || null,
-    content: document.getElementById("esc-content").value.trim() || null,
-    transportation: document.getElementById("esc-trans").value.trim() || null,
-    notes: document.getElementById("esc-notes").value.trim() || null,
-    mapUrl: isUrl(mapUrlRaw) ? mapUrlRaw : null,
-  });
-  showToast("수정 완료 ✅"); scheduleEditId = null; loadSchedules();
 }
 
 async function deleteSchedule(id) {
@@ -771,6 +844,7 @@ function expensesRef() { return tripsRef().doc(currentTripId).collection("expens
 
 function toggleExpenseEditMode() {
   expenseEditMode = !expenseEditMode;
+  dirtyExpenseIds.clear();
   const btn = document.getElementById("expense-edit-mode-btn");
   const banner = document.getElementById("expense-edit-banner");
   const table = document.getElementById("expense-table");
@@ -778,9 +852,14 @@ function toggleExpenseEditMode() {
   if (btn) btn.classList.toggle("active", expenseEditMode);
   if (banner) banner.classList.toggle("hidden", !expenseEditMode);
   if (table) table.classList.toggle("edit-mode-on", expenseEditMode);
-  if (actionCol) { actionCol.style.width = expenseEditMode ? "90px" : "0"; actionCol.style.padding = expenseEditMode ? "8px 9px" : "0"; }
+  if (actionCol) {
+    actionCol.textContent = expenseEditMode ? "☑" : "";
+    actionCol.style.width = expenseEditMode ? "34px" : "0";
+    actionCol.style.padding = expenseEditMode ? "8px 4px" : "0";
+  }
   if (expenseEditMode) expenseEditId = null;
   loadExpenses();
+  if (expenseEditMode) updateCheckedCount("expense");
 }
 
 function toggleExpenseAddForm() {
@@ -815,7 +894,6 @@ function renderExpenses(items) {
     return;
   }
   if (expenseEditMode) {
-    // 편집 모드: 모든 행 즉시 입력창으로 표시 (일정과 동일 방식)
     const cats = getCategories("expense");
     tbody.innerHTML = items.map(e => renderExpenseEditModeRow(e, sym, cats)).join("");
   } else {
@@ -830,25 +908,25 @@ function renderExpenses(items) {
   }
 }
 
-// 편집 모드 행 — 일정과 동일하게 즉시 모든 셀이 입력창
+// 편집 모드 행 — 체크박스만
 function renderExpenseEditModeRow(e, sym, cats) {
   const catOptions = cats.map(c => `<option${c===e.category?" selected":""}>${c}</option>`).join("");
+  const isChecked = dirtyExpenseIds.has(e.id);
   return `<tr class="em-row" data-id="${e.id}">
-    <td><select id="em-exp-cat-${e.id}"><option value="">선택</option>${catOptions}</select></td>
-    <td><input type="date" id="em-exp-date-${e.id}" value="${e.date||""}" style="min-width:100px" /></td>
-    <td><input type="text" id="em-exp-title-${e.id}" value="${escHtml(e.title)}" placeholder="제목" /></td>
-    <td><input type="number" id="em-exp-krw-${e.id}" value="${e.amountKrw??""}" style="text-align:right" placeholder="원화" /></td>
-    <td><input type="number" id="em-exp-foreign-${e.id}" value="${e.amountForeign??""}" style="text-align:right" placeholder="외화" ${!sym?"disabled":""} /></td>
-    <td style="white-space:nowrap">
-      <button class="add-btn" style="font-size:0.72rem;padding:3px 8px" onclick="saveExpenseEditModeRow('${e.id}')">저장</button>
-      <button class="em-del-btn" onclick="deleteExpense('${e.id}')" title="삭제">🗑</button>
+    <td><select id="em-exp-cat-${e.id}" onchange="markDirty('expense','${e.id}')"><option value="">선택</option>${catOptions}</select></td>
+    <td><input type="date" id="em-exp-date-${e.id}" value="${e.date||""}" style="min-width:100px" oninput="markDirty('expense','${e.id}')" onkeydown="handleEditKeydown(event,'expense')" /></td>
+    <td><input type="text" id="em-exp-title-${e.id}" value="${escHtml(e.title)}" placeholder="제목" oninput="markDirty('expense','${e.id}')" onkeydown="handleEditKeydown(event,'expense')" /></td>
+    <td><input type="number" id="em-exp-krw-${e.id}" value="${e.amountKrw??""}" style="text-align:right" placeholder="원화" oninput="markDirty('expense','${e.id}')" onkeydown="handleEditKeydown(event,'expense')" /></td>
+    <td><input type="number" id="em-exp-foreign-${e.id}" value="${e.amountForeign??""}" style="text-align:right" placeholder="외화" ${!sym?"disabled":""} oninput="markDirty('expense','${e.id}')" onkeydown="handleEditKeydown(event,'expense')" /></td>
+    <td style="text-align:center;padding:4px 4px">
+      <input type="checkbox" class="row-check exp-row-check" id="exp-check-${e.id}" data-id="${e.id}" ${isChecked?"checked":""} onchange="onRowCheckChange('expense')" />
     </td>
   </tr>`;
 }
 
-async function saveExpenseEditModeRow(id) {
+async function saveExpenseEditModeRow(id, silent) {
   const title = document.getElementById("em-exp-title-" + id)?.value.trim();
-  if (!title) { showToast("제목을 입력해주세요"); return; }
+  if (!title) { if (!silent) showToast("제목을 입력해주세요"); return; }
   await expensesRef().doc(id).update({
     category: document.getElementById("em-exp-cat-" + id)?.value || null,
     date: document.getElementById("em-exp-date-" + id)?.value || null,
@@ -856,8 +934,7 @@ async function saveExpenseEditModeRow(id) {
     amountKrw: document.getElementById("em-exp-krw-" + id)?.value ? parseInt(document.getElementById("em-exp-krw-" + id).value) : null,
     amountForeign: document.getElementById("em-exp-foreign-" + id)?.value ? parseFloat(document.getElementById("em-exp-foreign-" + id).value) : null,
   });
-  showToast("저장 완료 ✅");
-  loadExpenses();
+  if (!silent) showToast("저장 완료 ✅");
 }
 
 async function saveExpenseRow() {
@@ -875,19 +952,6 @@ async function saveExpenseRow() {
   loadExpenses();
 }
 
-async function updateExpense(id) {
-  const title = document.getElementById("eec-title").value.trim();
-  if (!title) { showToast("제목을 입력해주세요"); return; }
-  await expensesRef().doc(id).update({
-    category: document.getElementById("eec-cat").value || null,
-    date: document.getElementById("eec-date").value || null,
-    title,
-    amountKrw: document.getElementById("eec-krw").value ? parseInt(document.getElementById("eec-krw").value) : null,
-    amountForeign: document.getElementById("eec-foreign").value ? parseFloat(document.getElementById("eec-foreign").value) : null,
-  });
-  showToast("수정 완료 ✅"); expenseEditId = null; loadExpenses();
-}
-
 async function deleteExpense(id) {
   if (!confirm("이 지출을 삭제할까요?")) return;
   await expensesRef().doc(id).delete(); showToast("삭제됐어요 🗑️"); loadExpenses();
@@ -900,6 +964,7 @@ function reservationsRef() { return tripsRef().doc(currentTripId).collection("re
 
 function toggleResEditMode() {
   resEditMode = !resEditMode;
+  resEditItemId = null;
   const btn = document.getElementById("res-edit-mode-btn");
   const banner = document.getElementById("res-edit-banner");
   if (btn) btn.classList.toggle("active", resEditMode);
@@ -960,6 +1025,56 @@ function buildResForm(type) {
     ${btn}`;
 }
 
+// 예약 수정 폼 (기존 데이터 미리 채워짐)
+function buildResEditFormHtml(type, item) {
+  const btn = `<div class="sub-form-actions">
+    <button class="btn btn-ghost btn-sm" onclick="cancelResEdit()">취소</button>
+    <button class="btn btn-primary btn-sm" onclick="updateReservation('${item.id}','${type}')">수정저장</button>
+  </div>`;
+  if (type === "항공") return `
+    <div style="font-size:0.76rem;font-weight:700;color:var(--pd);margin-bottom:6px">✏️ 수정 중</div>
+    <div class="form-row">
+      <div class="form-group"><label>출발지</label><input type="text" id="ef-from" value="${escHtml(item.from)}" /></div>
+      <div class="form-group" style="flex:0 0 18px;justify-content:flex-end;padding-bottom:6px;font-size:1.1rem">→</div>
+      <div class="form-group"><label>도착지</label><input type="text" id="ef-to" value="${escHtml(item.to)}" /></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>출발 일시</label><input type="datetime-local" id="ef-depart" value="${item.depart||""}" /></div>
+      <div class="form-group"><label>도착 일시</label><input type="datetime-local" id="ef-arrive" value="${item.arrive||""}" /></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>편명</label><input type="text" id="ef-flight" value="${escHtml(item.flight)}" /></div>
+      <div class="form-group"><label>예약번호</label><input type="text" id="ef-number" value="${escHtml(item.reservationNumber)}" /></div>
+    </div>
+    <div class="form-row"><div class="form-group full"><label>비고 / 링크</label><input type="text" id="ef-notes" value="${escHtml(item.notes)}" /></div></div>
+    ${btn}`;
+  if (type === "숙소") return `
+    <div style="font-size:0.76rem;font-weight:700;color:var(--pd);margin-bottom:6px">✏️ 수정 중</div>
+    <div class="form-row"><div class="form-group full"><label>숙소명 *</label><input type="text" id="ef-title" value="${escHtml(item.title)}" /></div></div>
+    <div class="form-row">
+      <div class="form-group"><label>체크인</label><input type="datetime-local" id="ef-checkin" value="${item.checkin||""}" /></div>
+      <div class="form-group"><label>체크아웃</label><input type="datetime-local" id="ef-checkout" value="${item.checkout||""}" /></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>전화번호</label><input type="text" id="ef-phone" value="${escHtml(item.phone)}" /></div>
+      <div class="form-group"><label>예약확인번호</label><input type="text" id="ef-number" value="${escHtml(item.reservationNumber)}" /></div>
+    </div>
+    <div class="form-row"><div class="form-group full"><label>비고 / 링크</label><input type="text" id="ef-notes" value="${escHtml(item.notes)}" /></div></div>
+    ${btn}`;
+  return `
+    <div style="font-size:0.76rem;font-weight:700;color:var(--pd);margin-bottom:6px">✏️ 수정 중</div>
+    <div class="form-row">
+      <div class="form-group"><label>날짜</label><input type="date" id="ef-date" value="${item.date||""}" /></div>
+      <div class="form-group"><label>분류</label><input type="text" id="ef-subcat" value="${escHtml(item.subCategory)}" /></div>
+    </div>
+    <div class="form-row"><div class="form-group full"><label>예약명 / 장소 *</label><input type="text" id="ef-title" value="${escHtml(item.title)}" /></div></div>
+    <div class="form-row">
+      <div class="form-group"><label>예약번호</label><input type="text" id="ef-number" value="${escHtml(item.reservationNumber)}" /></div>
+      <div class="form-group"><label>비고 / 링크</label><input type="text" id="ef-notes" value="${escHtml(item.notes)}" /></div>
+    </div>
+    ${btn}`;
+}
+
 function closeResForm(type) { document.getElementById("res-form-" + type)?.classList.add("hidden"); }
 
 async function saveReservation(type) {
@@ -994,22 +1109,29 @@ async function saveReservation(type) {
 
 async function loadReservations() {
   const snap = await reservationsRef().orderBy("date").get().catch(() => ({ docs: [] }));
-  const items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  currentResItems = snap.docs.map(d => ({ id: d.id, ...d.data() }));
   ["항공","숙소","기타"].forEach(type => {
     const list = document.getElementById("res-list-" + type); if (!list) return;
-    const ti = items.filter(r => r.type === type);
+    const ti = currentResItems.filter(r => r.type === type);
     if (!ti.length) {
       list.innerHTML = `<div class="empty-msg" style="padding:12px;font-size:0.78rem">${type} 예약 없음</div>`;
       return;
     }
     list.innerHTML = ti.map(r => {
+      // 수정 중인 아이템이면 인라인 폼 렌더
+      if (resEditMode && r.id === resEditItemId) {
+        return `<div class="res-item res-edit-form-wrap">${buildResEditFormHtml(type, r)}</div>`;
+      }
       const notesHtml = r.notes ? `<p>${renderLink(r.notes)}</p>` : "";
+      const chkHtml = resEditMode
+        ? `<input type="checkbox" class="res-item-check res-row-check" data-id="${r.id}" onchange="onRowCheckChange('res')" />`
+        : "";
       const actions = resEditMode ? `
         <div class="res-actions">
           <button class="btn btn-ghost btn-icon" style="font-size:0.75rem" onclick="editReservation('${r.id}','${type}')">✏️</button>
-          <button class="btn btn-ghost btn-icon" style="font-size:0.75rem" onclick="deleteReservation('${r.id}')">🗑️</button>
         </div>` : "";
       return `<div class="res-item">
+        ${chkHtml}
         <div class="res-info">
           <h4>${escHtml(r.title) || "-"}</h4>
           ${type==="항공" ? `<p>${[r.depart?.replace("T"," "), r.arrive?.replace("T"," "), r.flight, r.reservationNumber].filter(Boolean).join(" · ")}</p>` : ""}
@@ -1021,11 +1143,56 @@ async function loadReservations() {
       </div>`;
     }).join("");
   });
+  if (resEditMode) updateCheckedCount("res");
 }
 
-// 예약 편집 (간단 inline — 기존 폼 재사용)
+// 예약 인라인 수정 열기
 function editReservation(id, type) {
-  showToast("해당 예약을 삭제 후 다시 추가해주세요 (편집 예정)");
+  resEditItemId = id;
+  // 추가 폼 닫기
+  ["항공","숙소","기타"].forEach(t => document.getElementById("res-form-" + t)?.classList.add("hidden"));
+  loadReservations(); // 해당 아이템을 폼으로 렌더
+  setTimeout(() => {
+    const el = document.querySelector(".res-edit-form-wrap input");
+    if (el) el.focus();
+  }, 80);
+}
+
+function cancelResEdit() {
+  resEditItemId = null;
+  loadReservations();
+}
+
+async function updateReservation(id, type) {
+  let data = { notes: document.getElementById("ef-notes")?.value.trim() || null };
+  if (type === "항공") {
+    data.from = document.getElementById("ef-from")?.value.trim() || null;
+    data.to   = document.getElementById("ef-to")?.value.trim() || null;
+    data.depart  = document.getElementById("ef-depart")?.value || null;
+    data.arrive  = document.getElementById("ef-arrive")?.value || null;
+    data.flight  = document.getElementById("ef-flight")?.value.trim() || null;
+    data.reservationNumber = document.getElementById("ef-number")?.value.trim() || null;
+    data.title = [data.from, data.to].filter(Boolean).join(" → ") || "항공";
+    data.date  = data.depart ? data.depart.split("T")[0] : null;
+  } else if (type === "숙소") {
+    data.title = document.getElementById("ef-title")?.value.trim();
+    if (!data.title) { showToast("숙소명을 입력해주세요"); return; }
+    data.checkin  = document.getElementById("ef-checkin")?.value || null;
+    data.checkout = document.getElementById("ef-checkout")?.value || null;
+    data.phone    = document.getElementById("ef-phone")?.value.trim() || null;
+    data.reservationNumber = document.getElementById("ef-number")?.value.trim() || null;
+    data.date = data.checkin ? data.checkin.split("T")[0] : null;
+  } else {
+    data.title = document.getElementById("ef-title")?.value.trim();
+    if (!data.title) { showToast("예약명을 입력해주세요"); return; }
+    data.subCategory = document.getElementById("ef-subcat")?.value.trim() || null;
+    data.date = document.getElementById("ef-date")?.value || null;
+    data.reservationNumber = document.getElementById("ef-number")?.value.trim() || null;
+  }
+  await reservationsRef().doc(id).update(data);
+  showToast("예약 수정 완료 ✅");
+  resEditItemId = null;
+  loadReservations();
 }
 
 async function deleteReservation(id) {
@@ -1073,7 +1240,7 @@ function renderTripBucket(items) {
 
   board.innerHTML = BUCKET_CATEGORIES.map(cat => {
     const catItems = filtered.filter(i => (i.category || "기타") === cat);
-    if (catItems.length === 0) return ""; // 아이템 없는 카테고리는 표시 안 함
+    if (catItems.length === 0) return "";
     return `
     <div class="wish-cat-card">
       <div class="wish-cat-header">
@@ -1105,7 +1272,6 @@ function openTripBucketModal(editId) {
     ["bk-place","bk-country","bk-notes"].forEach(id => { const el = document.getElementById(id); if(el) el.value=""; });
     document.getElementById("bk-season").value = "";
     document.getElementById("bk-visited").checked = false;
-    // 지역 필터가 활성화된 경우 자동 입력
     document.getElementById("bk-region").value = regionFilter || "";
   }
   const saveBtn = document.getElementById("bk-save-btn");
@@ -1170,14 +1336,20 @@ function setBucketRegionTab(tab, el) {
 
 function toggleBucketEditMode() {
   bucketEditMode = !bucketEditMode;
+  dirtyBucketIds.clear();
   const btn = document.getElementById("bucket-edit-mode-btn");
   const banner = document.getElementById("bucket-edit-banner");
   const actionCol = document.getElementById("bucket-action-col");
   if (btn) btn.classList.toggle("active", bucketEditMode);
   if (banner) banner.classList.toggle("hidden", !bucketEditMode);
-  if (actionCol) { actionCol.style.width = bucketEditMode ? "80px" : "0"; actionCol.style.padding = bucketEditMode ? "8px 9px" : "0"; }
+  if (actionCol) {
+    actionCol.textContent = bucketEditMode ? "☑" : "";
+    actionCol.style.width = bucketEditMode ? "34px" : "0";
+    actionCol.style.padding = bucketEditMode ? "8px 4px" : "0";
+  }
   if (bucketEditMode) bucketEditId = null;
   renderBucketList();
+  if (bucketEditMode) updateCheckedCount("bucket");
 }
 
 // 버킷 추가 모달
@@ -1192,7 +1364,6 @@ function openBucketAddModal(editId) {
   const saveBtn = document.getElementById("bam-save-btn");
   if (titleEl) titleEl.textContent = editId ? "⭐ 장소 수정" : "⭐ 장소 추가";
   if (saveBtn) saveBtn.textContent = editId ? "수정하기" : "추가하기";
-  // bam-type select 채우기
   const sel = document.getElementById("bam-type");
   if (sel) {
     sel.innerHTML = '<option value="">선택</option>' + getCategories("bucket").map(c => `<option>${c}</option>`).join("");
@@ -1238,13 +1409,48 @@ async function saveBucketAddModal() {
   reloadBucketAll();
 }
 
+// 버킷 편집모드 인라인 행
+function renderBucketEditModeRow(item) {
+  const cats = getCategories("bucket");
+  const catOptions = cats.map(c => `<option${c===item.category?" selected":""}>${c}</option>`).join("");
+  const isChecked = dirtyBucketIds.has(item.id);
+  return `<tr class="em-row" data-id="${item.id}">
+    <td></td>
+    <td><select id="em-bkt-cat-${item.id}" onchange="markDirty('bucket','${item.id}')"><option value="">선택</option>${catOptions}</select></td>
+    <td><input type="text" id="em-bkt-country-${item.id}" value="${escHtml(item.country)}" placeholder="나라" oninput="markDirty('bucket','${item.id}')" onkeydown="handleEditKeydown(event,'bucket')" /></td>
+    <td><input type="text" id="em-bkt-region-${item.id}" value="${escHtml(item.region)}" placeholder="지역" oninput="markDirty('bucket','${item.id}')" onkeydown="handleEditKeydown(event,'bucket')" /></td>
+    <td><input type="text" id="em-bkt-place-${item.id}" value="${escHtml(item.placeName)}" placeholder="장소명" oninput="markDirty('bucket','${item.id}')" onkeydown="handleEditKeydown(event,'bucket')" /></td>
+    <td><select id="em-bkt-season-${item.id}" onchange="markDirty('bucket','${item.id}')">
+      <option value="">-</option>
+      ${["봄","여름","가을","겨울","연중"].map(s=>`<option${s===item.season?" selected":""}>${s}</option>`).join("")}
+    </select></td>
+    <td><input type="text" id="em-bkt-notes-${item.id}" value="${escHtml(item.notes)}" placeholder="비고" oninput="markDirty('bucket','${item.id}')" onkeydown="handleEditKeydown(event,'bucket')" /></td>
+    <td style="text-align:center;padding:4px 4px">
+      <input type="checkbox" class="row-check bkt-row-check" id="bkt-check-${item.id}" data-id="${item.id}" ${isChecked?"checked":""} onchange="onRowCheckChange('bucket')" />
+    </td>
+  </tr>`;
+}
+
+async function saveBucketEditModeRow(id, silent) {
+  const placeName = document.getElementById("em-bkt-place-" + id)?.value.trim();
+  if (!placeName) { if (!silent) showToast("장소명을 입력해주세요"); return; }
+  await bucketRef().doc(id).update({
+    placeName,
+    category: document.getElementById("em-bkt-cat-" + id)?.value || "기타",
+    country: document.getElementById("em-bkt-country-" + id)?.value.trim() || null,
+    region: document.getElementById("em-bkt-region-" + id)?.value.trim() || null,
+    season: document.getElementById("em-bkt-season-" + id)?.value || null,
+    notes: document.getElementById("em-bkt-notes-" + id)?.value.trim() || null,
+  });
+  if (!silent) showToast("저장 완료 ✅");
+}
+
 // ---- 컬럼 드롭다운 메뉴 ----
 function toggleColMenu(col, btn) {
   const ddId = "col-dd-" + col;
   const dd = document.getElementById(ddId);
   if (!dd) return;
 
-  // 다른 열린 메뉴 닫기
   document.querySelectorAll(".col-dropdown.open").forEach(el => {
     if (el.id !== ddId) el.classList.remove("open");
   });
@@ -1255,7 +1461,6 @@ function toggleColMenu(col, btn) {
     return;
   }
 
-  // 메뉴 내용 생성
   const curFilter = bucketColFilters[col] || "";
   dd.innerHTML = `
     <button class="col-dd-btn" onclick="setBucketSort('${col}','asc');closeColMenus()">↑ 오름차순</button>
@@ -1281,14 +1486,14 @@ function closeColMenus() {
 }
 
 function setBucketColFilter(col, val) {
-  if (val.trim()) bucketColFilters[col] = val.trim().toLowerCase();
-  else delete bucketColFilters[col];
+  bucketColFilters[col] = val.toLowerCase();
   renderBucketList();
 }
 
 function resetColFilter(col) {
   delete bucketColFilters[col];
   renderBucketList();
+  updateBucketSortHeaders();
 }
 
 function setBucketSort(col, dir) {
@@ -1303,9 +1508,7 @@ function updateBucketSortHeaders() {
     const col = th.dataset.col;
     const btn = th.querySelector(".col-menu-btn");
     if (!btn) return;
-    if (col === bucketSortCol) {
-      btn.classList.add("col-active-sort");
-    } else if (bucketColFilters[col]) {
+    if (col === bucketSortCol || bucketColFilters[col]) {
       btn.classList.add("col-active-sort");
     } else {
       btn.classList.remove("col-active-sort");
@@ -1328,28 +1531,27 @@ function renderBucketList() {
 
   let items = [...allBucketItems];
 
-  // 국내/해외 탭 필터
   if (bucketRegionTab === "domestic") {
     items = items.filter(i => ["한국","국내"].includes(i.country || ""));
   } else if (bucketRegionTab === "overseas") {
     items = items.filter(i => !["한국","국내"].includes(i.country || "") && i.country);
   }
 
-  // 컬럼 필터 적용
   Object.entries(bucketColFilters).forEach(([col, val]) => {
     items = items.filter(i => (i[col] || "").toLowerCase().includes(val));
   });
 
-  // 정렬 적용
   items = applySortToBucket(items);
 
   if (!items.length) {
     tbody.innerHTML = `<tr><td colspan="8" class="empty-msg">⭐ 결과가 없어요</td></tr>`;
     return;
   }
-  tbody.innerHTML = items.map(item => {
-    if (bucketEditId === item.id) return renderBucketEditRow(item);
-    return `<tr class="${item.visited?"done-row":""}">
+
+  if (bucketEditMode) {
+    tbody.innerHTML = items.map(item => renderBucketEditModeRow(item)).join("");
+  } else {
+    tbody.innerHTML = items.map(item => `<tr class="${item.visited?"done-row":""}">
       <td><button class="visit-toggle ${item.visited?"done":""}" onclick="toggleVisited('${item.id}',${item.visited})">${item.visited?"✓":""}</button></td>
       <td>${item.category ? `<span class="badge badge-${escHtml(item.category)}">${escHtml(item.category)}</span>` : "-"}</td>
       <td>${escHtml(item.country)||"-"}</td>
@@ -1357,16 +1559,12 @@ function renderBucketList() {
       <td style="font-weight:700">${escHtml(item.placeName)}</td>
       <td>${escHtml(item.season)||"-"}</td>
       <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${renderLink(item.notes) || "-"}</td>
-      <td style="white-space:nowrap;width:${bucketEditMode?"80px":"0"};padding:${bucketEditMode?"8px 9px":"0"};overflow:hidden">
-        ${bucketEditMode ? `
-          <button class="btn btn-ghost btn-icon" style="font-size:0.75rem" onclick="openBucketAddModalForEdit('${item.id}')">✏️</button>
-          <button class="btn btn-ghost btn-icon" style="font-size:0.75rem" onclick="deleteBucketItem('${item.id}')">🗑️</button>
-        ` : ""}
-      </td>
-    </tr>`;
-  }).join("");
+      <td style="width:0;padding:0;overflow:hidden"></td>
+    </tr>`).join("");
+  }
 
   updateBucketSortHeaders();
+  if (bucketEditMode) updateCheckedCount("bucket");
 }
 
 function renderBucketEditRow(item) {
@@ -1438,22 +1636,6 @@ async function seedSampleData() {
       {location:"잇페코페 돈까스", transportation:"도보", date:"2024-09-27", time:"18:00", content:"밥 먹어", category:"식사", notes:null, mapUrl:null},
       {location:"마지산도", transportation:"도보", date:"2024-09-27", time:"18:30", content:"맛있겠다", category:"카페", notes:null, mapUrl:null},
       {location:"다누키코지 상점가", transportation:"도보", date:"2024-09-27", time:"20:00", content:"구경", category:"관광", notes:null, mapUrl:"https://maps.app.goo.gl/oMw4FrN139hdHip97"},
-      {location:"비에이", transportation:"기차", date:"2024-09-28", time:"09:00", content:"JR쾌속선, 1시간 30분 소요", category:"이동", notes:null, mapUrl:null},
-      {location:"비에이→아오이이케 이동", transportation:"버스", date:"2024-09-28", time:"10:30", content:"시로가네·아오이이케 방면 버스", category:"이동", notes:null, mapUrl:"https://maps.app.goo.gl/geu3We3ZdECSoqGZ8"},
-      {location:"아오이이케", transportation:"버스", date:"2024-09-28", time:"11:00", content:"11시 정도 도착!", category:"관광", notes:null, mapUrl:null},
-      {location:"흰수염폭포", transportation:"버스", date:"2024-09-28", time:"12:00", content:"제일 기대된다", category:"관광", notes:null, mapUrl:null},
-      {location:"챠이", transportation:null, date:"2024-09-28", time:"13:30", content:"마파두부 먹어야지", category:"식사", notes:null, mapUrl:null},
-      {location:"Biei Sabou", transportation:"도보", date:"2024-09-28", time:"16:00", content:"카페 가서 커피 좀 마시고 이동", category:"카페", notes:null, mapUrl:null},
-      {location:"켄과 메리의 나무", transportation:"도보", date:"2024-09-28", time:"17:00", content:"이쁘겠당 / 18시까지 구경", category:"관광", notes:null, mapUrl:null},
-      {location:"야키니쿠 라이크", transportation:"도보", date:"2024-09-28", time:"20:00", content:"1인 야키니쿠집", category:"식사", notes:null, mapUrl:"https://maps.app.goo.gl/1BQVjZDELSz2AKu59"},
-      {location:"삿포로→오타루 이동", transportation:"기차", date:"2024-09-29", time:"11:00", content:"JR패스, 3~40분", category:"이동", notes:null, mapUrl:"https://maps.app.goo.gl/61YiL8NKdjDBVMVu9"},
-      {location:"오타루 운하", transportation:null, date:"2024-09-29", time:"12:00", content:"운하 뱃놀이하기, 1시간 정도", category:"체험", notes:null, mapUrl:null},
-      {location:"야부한 소바", transportation:"도보", date:"2024-09-29", time:"13:30", content:"밥 먹자", category:"식사", notes:null, mapUrl:null},
-      {location:"기타이치 홀", transportation:"도보", date:"2024-09-29", time:"15:00", content:"엄청 이쁘겠다", category:"카페", notes:null, mapUrl:"https://maps.app.goo.gl/GuXUtjMY8eRwqVpR7"},
-      {location:"오타루 오르골당", transportation:"도보", date:"2024-09-29", time:"15:30", content:"여행 목적", category:"쇼핑", notes:null, mapUrl:"https://maps.app.goo.gl/gQtBHvPwxSWL4DgM8"},
-      {location:"에비소바 이치겐", transportation:"도보", date:"2024-09-29", time:"20:00", content:"밥 먹으러 가자", category:"식사", notes:null, mapUrl:"https://maps.app.goo.gl/sYHmSBfo4jX8GQ17"},
-      {location:"수프카레 스아게", transportation:"도보", date:"2024-09-30", time:null, content:"밥 먹고 바로 이동", category:"식사", notes:null, mapUrl:null},
-      {location:"나카지마 공원", transportation:"택시", date:"2024-09-30", time:null, content:"시간 상황 보고 구경 후 택시 이동", category:"관광", notes:null, mapUrl:null},
     ];
 
     const schBatch = db.batch();
@@ -1472,43 +1654,20 @@ async function seedSampleData() {
     const bucketData = [
       {placeName:"안반데기", season:null, country:"한국", notes:null, category:"풍경", region:"강원도"},
       {placeName:"태백산", season:null, country:"한국", notes:null, category:"풍경", region:"강원도"},
-      {placeName:"인제 자작나무 숲", season:null, country:"한국", notes:null, category:"풍경", region:"강원도"},
-      {placeName:"한산도", season:null, country:"한국", notes:null, category:"풍경", region:"경남 통영"},
-      {placeName:"범물 맛집부추잡채", season:null, country:"한국", notes:null, category:"맛집", region:"대구"},
-      {placeName:"빠뜨릭스 와플", season:null, country:"한국", notes:null, category:"카페", region:"서울"},
-      {placeName:"탁신관", season:null, country:"일본", notes:"비에이", category:"기념품", region:"훗카이도"},
-      {placeName:"대릉원", season:"여름", country:"한국", notes:null, category:"풍경", region:"경주"},
-      {placeName:"연지공원", season:"봄, 여름", country:"한국", notes:null, category:"풍경", region:"김해"},
-      {placeName:"우암사적공원", season:"봄", country:"한국", notes:null, category:"풍경", region:"대전"},
-      {placeName:"순천만 습지", season:null, country:"한국", notes:null, category:"풍경", region:"순천"},
       {placeName:"사가노 대나무 숲", season:"가을", country:"일본", notes:null, category:"풍경", region:"교토"},
       {placeName:"기요미즈데라", season:"가을", country:"일본", notes:null, category:"풍경", region:"교토"},
-      {placeName:"철학의 길", season:"가을", country:"일본", notes:null, category:"풍경", region:"교토"},
       {placeName:"이노다 커피", season:null, country:"일본", notes:"나폴리탄, 타마고 산도", category:"카페", region:"교토"},
-      {placeName:"청수사", season:"가을", country:"일본", notes:null, category:"풍경", region:"교토"},
-      {placeName:"아라시야마", season:null, country:"일본", notes:"센과 치히로", category:"풍경", region:"교토"},
-      {placeName:"금각사", season:null, country:"일본", notes:null, category:"풍경", region:"교토"},
-      {placeName:"니시키 시장", season:null, country:"일본", notes:"시장거리", category:"기념품", region:"교토"},
       {placeName:"흰수염폭포", season:null, country:"일본", notes:null, category:"풍경", region:"훗카이도"},
       {placeName:"아오이이케", season:null, country:"일본", notes:null, category:"풍경", region:"훗카이도"},
-      {placeName:"오르골당", season:null, country:"일본", notes:"오타루", category:"기념품", region:"훗카이도"},
-      {placeName:"잇페코페 돈까스", season:null, country:"일본", notes:"돈까스", category:"맛집", region:"훗카이도"},
-      {placeName:"마지산도", season:null, country:"일본", notes:null, category:"카페", region:"훗카이도"},
-      {placeName:"별밤사진관", season:null, country:"한국", notes:"38,000원", category:"체험", region:"제주도"},
-      {placeName:"신창풍차해안도로", season:null, country:"한국", notes:null, category:"풍경", region:"제주도"},
     ];
 
     const existingSnap = await bucketRef().get();
     const existingNames = new Set(existingSnap.docs.map(d => d.data().placeName));
     const toAdd = bucketData.filter(b => !existingNames.has(b.placeName));
 
-    for (let i = 0; i < toAdd.length; i += 400) {
-      const batch = db.batch();
-      toAdd.slice(i, i + 400).forEach(b => {
-        batch.set(bucketRef().doc(), { ...b, visited: false });
-      });
-      await batch.commit();
-    }
+    const bkBatch = db.batch();
+    toAdd.forEach(b => bkBatch.set(bucketRef().doc(), { ...b, visited: false }));
+    await bkBatch.commit();
 
     showToast(`완료! 삿포로 일정 ${scheduleData.length}개, 버킷 ${toAdd.length}개 추가됐어요 🎉`);
     btn.textContent = "✅ 완료됨"; btn.disabled = false;
@@ -1526,7 +1685,6 @@ async function seedSampleData() {
 document.addEventListener("DOMContentLoaded", () => {
   refreshCategorySelects();
   renderAllCatTags();
-  // 지도 입력 라이브 미리보기
   const mapEntryInp = document.getElementById("map-entry-input");
   if (mapEntryInp) mapEntryInp.addEventListener("input", updateMapEntryPreview);
 });
@@ -1538,13 +1696,22 @@ document.addEventListener("click", e => {
   }
 });
 
+// 키보드 단축키
 document.addEventListener("keydown", e => {
   if (e.key === "Escape") {
-    closeModal("modal-bucket-trip");
-    closeModal("modal-map-view");
-    closeModal("modal-bucket-add");
-    closeModal("modal-map-entry");
-    closeModal("modal-link-preview");
+    // 모달 열려있으면 먼저 닫기
+    const openModals = ["modal-map-view","modal-map-entry","modal-bucket-trip","modal-bucket-add","modal-link-preview"];
+    const anyOpen = openModals.some(id => !document.getElementById(id)?.classList.contains("hidden"));
+    if (anyOpen) {
+      openModals.forEach(id => closeModal(id));
+      closeColMenus();
+      return;
+    }
+    // 편집 모드 종료
+    if (scheduleEditMode) { toggleScheduleEditMode(); return; }
+    if (expenseEditMode)  { toggleExpenseEditMode();  return; }
+    if (bucketEditMode)   { toggleBucketEditMode();   return; }
+    if (resEditMode)      { toggleResEditMode();       return; }
     closeColMenus();
   }
 });
