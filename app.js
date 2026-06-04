@@ -1,5 +1,11 @@
 // ============================================================
-// 여행을 떠나자 — app.js (수정본 v3)
+// 여행을 떠나자 — app.js (수정본 v4)
+// 변경사항:
+//  1. 일정 테이블 비고 옆 지도 아이콘 → 클릭 시 Google Maps 모달
+//  2. 일정 섹션 편집 모드 토글 버튼 (전체 행 인라인 편집 + 삭제)
+//  3. 가고싶은 곳 지역 필터 localStorage 영구 저장
+//  4. 버킷플레이스 컬럼 정렬 (클릭으로 오름/내림차순)
+//  5. 버킷플레이스 필터 localStorage 영구 저장
 // ============================================================
 
 const firebaseConfig = {
@@ -21,6 +27,8 @@ let currentUser = null;
 let currentTripId = null;
 let currentTrip = null;
 let scheduleEditId = null;
+let scheduleEditMode = false;       // [NEW] 편집 모드 플래그
+let scheduleItems = [];             // [NEW] 편집 모드용 캐시
 let expenseEditId = null;
 let bucketEditId = null;
 let tripBucketEditId = null;
@@ -30,6 +38,10 @@ let allBucketItems = [];
 let bucketFilterVisible = false;
 let mapCollapsed = false;
 const resCollapsed = { 항공: false, 숙소: false, 기타: false };
+
+// [NEW] 버킷플레이스 정렬 상태
+let bucketSortCol = "";
+let bucketSortDir = "asc";
 
 const CURRENCY_SYMBOLS = { JPY: "¥", EUR: "€", USD: "$", CNY: "¥", THB: "฿", VND: "₫", AUD: "A$" };
 const DEFAULT_RATES  = { JPY: 9.2, EUR: 1500, USD: 1380, CNY: 190, THB: 38, VND: 0.056, AUD: 900 };
@@ -141,7 +153,12 @@ function showPage(page) {
   document.querySelectorAll("nav a").forEach(a => a.classList.remove("active"));
   const nav = document.getElementById("nav-" + page); if (nav) nav.classList.add("active");
   if (page === "home") loadTrips();
-  if (page === "bucket") { loadAllBucketItems(); refreshCategorySelects(); }
+  if (page === "bucket") {
+    loadAllBucketItems();
+    refreshCategorySelects();
+    restoreBucketFilter();
+    updateBucketSortHeaders();
+  }
   if (page === "settings") { renderAllCatTags(); refreshCategorySelects(); calcStorage(); }
 }
 
@@ -245,7 +262,6 @@ async function createTrip() {
 
 async function deleteTrip(id) {
   if (!confirm("이 여행을 삭제할까요? (일정·지출·예약 모두 삭제됩니다)")) return;
-  // subcollections must be deleted manually (in batch)
   const cols = ["schedules","expenses","reservations"];
   for (const col of cols) {
     const snap = await tripsRef().doc(id).collection(col).get().catch(() => ({ docs: [] }));
@@ -263,13 +279,23 @@ async function deleteTrip(id) {
 // ============================================================
 async function openTrip(tripId) {
   showPage("trip");
-  currentTripId = tripId; scheduleEditId = null; expenseEditId = null;
+  currentTripId = tripId;
+  scheduleEditId = null;
+  scheduleEditMode = false;
+  expenseEditId = null;
   const doc = await tripsRef().doc(tripId).get();
   currentTrip = { id: doc.id, ...doc.data() };
   renderTripInfo();
   refreshCategorySelects();
   loadSchedules(); loadExpenses(); loadReservations(); loadTripBucketItems();
   initMapSection();
+  // 편집 모드 UI 초기화
+  const btn = document.getElementById("schedule-edit-mode-btn");
+  if (btn) btn.classList.remove("active");
+  const banner = document.getElementById("edit-mode-banner");
+  if (banner) banner.classList.add("hidden");
+  const table = document.getElementById("schedule-table");
+  if (table) table.classList.remove("edit-mode-on");
 }
 
 function renderTripInfo() {
@@ -281,7 +307,6 @@ function renderTripInfo() {
   document.getElementById("trip-location-input").value = [t.city, t.country].filter(Boolean).join(", ");
   document.getElementById("currency-select").value = t.foreignCurrency || "";
   updateCurrencyDisplay();
-  // Set default date for add rows
   if (t.startDate) {
     ["sch-add-date","exp-add-date"].forEach(id => {
       const el = document.getElementById(id); if (el && !el.value) el.value = t.startDate;
@@ -384,6 +409,60 @@ function setView(view) {
 }
 
 // ============================================================
+// [NEW] 지도 모달 열기
+// ============================================================
+function buildMapEmbedUrl(raw) {
+  if (!raw) return "";
+  if (raw.includes("google.com/maps/d/")) {
+    const m = raw.match(/mid=([^&]+)/);
+    if (m) return "https://www.google.com/maps/d/embed?mid=" + m[1];
+  }
+  if (raw.includes("output=embed")) return raw;
+  // 공유 단축 URL이나 일반 URL → 검색 embed로 변환
+  const q = raw.match(/[?&]q=([^&]+)/);
+  if (q) return `https://maps.google.com/maps?q=${q[1]}&output=embed&hl=ko`;
+  // 위도/경도 포함 URL 처리
+  const ll = raw.match(/@([-\d.]+),([-\d.]+)/);
+  if (ll) return `https://maps.google.com/maps?q=${ll[1]},${ll[2]}&output=embed&hl=ko`;
+  // fallback: URL 자체를 iframe에 넣기
+  return raw;
+}
+
+function openMapModal(notesUrl, locationName) {
+  const title = document.getElementById("map-modal-title");
+  const anchor = document.getElementById("map-modal-link-anchor");
+  const frame = document.getElementById("map-modal-frame");
+
+  title.textContent = "🗺️ " + (locationName || "지도");
+  anchor.href = notesUrl;
+  anchor.textContent = notesUrl;
+
+  const embedUrl = buildMapEmbedUrl(notesUrl);
+  frame.src = embedUrl || "";
+
+  openModal("modal-map-view");
+}
+
+// ============================================================
+// [NEW] 편집 모드 토글
+// ============================================================
+function toggleScheduleEditMode() {
+  scheduleEditMode = !scheduleEditMode;
+  const btn = document.getElementById("schedule-edit-mode-btn");
+  const banner = document.getElementById("edit-mode-banner");
+  const table = document.getElementById("schedule-table");
+
+  if (btn) btn.classList.toggle("active", scheduleEditMode);
+  if (banner) banner.classList.toggle("hidden", !scheduleEditMode);
+  if (table) table.classList.toggle("edit-mode-on", scheduleEditMode);
+
+  // 편집 모드 진입 시 단일행 편집 모드 해제
+  if (scheduleEditMode) scheduleEditId = null;
+
+  renderScheduleTable(scheduleItems);
+}
+
+// ============================================================
 // SCHEDULES
 // ============================================================
 function schedulesRef() { return tripsRef().doc(currentTripId).collection("schedules"); }
@@ -406,36 +485,88 @@ async function loadSchedules() {
     const dd = (a.date||"").localeCompare(b.date||"");
     return dd !== 0 ? dd : (a.time||"").localeCompare(b.time||"");
   });
+  scheduleItems = items; // [NEW] 캐시 저장
   renderScheduleTable(items); renderTimetable(items);
+}
+
+// [NEW] URL 여부 판별
+function isUrl(str) {
+  return typeof str === "string" && (str.startsWith("http://") || str.startsWith("https://"));
 }
 
 function renderScheduleTable(items) {
   const tbody = document.getElementById("schedule-tbody");
-  // Refresh category select
   const catEl = document.getElementById("sch-add-cat");
   if (catEl && catEl.options.length <= 1) refreshCategorySelects();
 
   if (!items.length) {
-    tbody.innerHTML = `<tr><td colspan="8" class="empty-msg">📅 아래 행에서 일정을 추가하세요</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" class="empty-msg">📅 아래 행에서 일정을 추가하세요</td></tr>`;
     return;
   }
-  tbody.innerHTML = items.map(s => {
-    if (scheduleEditId === s.id) return renderScheduleEditRow(s);
-    const catBadge = s.category ? `<span class="badge badge-${s.category.replace(/\//g,"\\/")}"> ${s.category}</span>` : "-";
-    return `<tr>
-      <td>${catBadge}</td>
-      <td style="white-space:nowrap">${s.date||"-"}</td>
-      <td style="color:var(--text-muted);white-space:nowrap">${s.time||"-"}</td>
-      <td>${s.location||"-"}</td>
-      <td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${s.content||""}">${s.content||"-"}</td>
-      <td style="color:var(--text-muted)">${s.transportation||"-"}</td>
-      <td style="color:var(--text-muted);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${s.notes||""}">${s.notes||"-"}</td>
-      <td style="white-space:nowrap">
-        <button class="btn btn-ghost btn-icon" onclick="startEditSchedule('${s.id}')">✏️</button>
-        <button class="btn btn-ghost btn-icon" onclick="deleteSchedule('${s.id}')">🗑️</button>
-      </td>
-    </tr>`;
-  }).join("");
+
+  if (scheduleEditMode) {
+    // ---- 편집 모드: 모든 행 인라인 편집 ----
+    const cats = getCategories("schedule");
+    tbody.innerHTML = items.map(s => renderScheduleEditModeRow(s, cats)).join("");
+  } else {
+    // ---- 일반 모드 ----
+    tbody.innerHTML = items.map(s => {
+      if (scheduleEditId === s.id) return renderScheduleEditRow(s);
+      const catBadge = s.category ? `<span class="badge badge-${s.category.replace(/\//g,"\\/")}"> ${s.category}</span>` : "-";
+      const hasLink = isUrl(s.notes);
+      const mapBtn = `<button class="map-icon-btn${hasLink?" has-link":""}" onclick="openMapModal(${hasLink ? `'${s.notes.replace(/'/g,"\\'")}','${(s.location||"").replace(/'/g,"\\'")}'"  : `'https://maps.google.com/maps?q=${encodeURIComponent(s.location||"")}&hl=ko','${(s.location||"").replace(/'/g,"\\'")}'"` })" title="${hasLink ? "지도 링크 열기" : "장소 검색"}">🗺️</button>`;
+      return `<tr>
+        <td>${catBadge}</td>
+        <td style="white-space:nowrap">${s.date||"-"}</td>
+        <td style="color:var(--text-muted);white-space:nowrap">${s.time||"-"}</td>
+        <td>${s.location||"-"}</td>
+        <td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${s.content||""}">${s.content||"-"}</td>
+        <td style="color:var(--text-muted)">${s.transportation||"-"}</td>
+        <td style="color:var(--text-muted);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${s.notes||""}">${s.notes||"-"}</td>
+        <td style="text-align:center">${mapBtn}</td>
+        <td style="white-space:nowrap">
+          <button class="btn btn-ghost btn-icon" onclick="startEditSchedule('${s.id}')">✏️</button>
+          <button class="btn btn-ghost btn-icon" onclick="deleteSchedule('${s.id}')">🗑️</button>
+        </td>
+      </tr>`;
+    }).join("");
+  }
+}
+
+// [NEW] 편집 모드 행 렌더링 (모든 셀이 input)
+function renderScheduleEditModeRow(s, cats) {
+  const catOptions = cats.map(c => `<option${c===s.category?" selected":""}>${c}</option>`).join("");
+  return `<tr class="em-row" data-id="${s.id}">
+    <td><select id="em-cat-${s.id}" style="min-width:60px"><option value="">분류</option>${catOptions}</select></td>
+    <td><input type="date" id="em-date-${s.id}" value="${s.date||""}" /></td>
+    <td><input type="time" id="em-time-${s.id}" value="${s.time||""}" style="min-width:70px" /></td>
+    <td><input type="text" id="em-loc-${s.id}" value="${(s.location||"").replace(/"/g,'&quot;')}" placeholder="장소" /></td>
+    <td><input type="text" id="em-content-${s.id}" value="${(s.content||"").replace(/"/g,'&quot;')}" placeholder="내용" /></td>
+    <td><input type="text" id="em-trans-${s.id}" value="${(s.transportation||"").replace(/"/g,'&quot;')}" placeholder="교통편" /></td>
+    <td><input type="text" id="em-notes-${s.id}" value="${(s.notes||"").replace(/"/g,'&quot;')}" placeholder="비고" /></td>
+    <td></td>
+    <td style="white-space:nowrap">
+      <button class="add-btn" style="font-size:0.72rem;padding:3px 8px" onclick="saveEditModeRow('${s.id}')">저장</button>
+      <button class="em-del-btn" onclick="deleteSchedule('${s.id}')" title="삭제">🗑</button>
+    </td>
+  </tr>`;
+}
+
+// [NEW] 편집 모드에서 개별 행 저장
+async function saveEditModeRow(id) {
+  const date = document.getElementById("em-date-" + id)?.value;
+  if (!date) { showToast("날짜를 입력해주세요"); return; }
+  await schedulesRef().doc(id).update({
+    category: document.getElementById("em-cat-" + id)?.value || null,
+    date,
+    time: document.getElementById("em-time-" + id)?.value || null,
+    location: document.getElementById("em-loc-" + id)?.value.trim() || null,
+    content: document.getElementById("em-content-" + id)?.value.trim() || null,
+    transportation: document.getElementById("em-trans-" + id)?.value.trim() || null,
+    notes: document.getElementById("em-notes-" + id)?.value.trim() || null,
+  });
+  showToast("저장 완료 ✅");
+  loadSchedules();
 }
 
 function renderScheduleEditRow(s) {
@@ -448,6 +579,7 @@ function renderScheduleEditRow(s) {
     <td><input type="text" id="esc-content" value="${s.content||""}" /></td>
     <td><input type="text" id="esc-trans" value="${s.transportation||""}" /></td>
     <td><input type="text" id="esc-notes" value="${s.notes||""}" /></td>
+    <td></td>
     <td style="white-space:nowrap">
       <button class="add-btn" onclick="updateSchedule('${s.id}')">저장</button>
       <button class="cancel-btn" onclick="cancelEditSchedule()">취소</button>
@@ -542,10 +674,7 @@ function renderExpenses(items) {
   document.getElementById("expense-summary-display").textContent =
     `합계 ${totalKrw.toLocaleString()}원${sym && totalForeign ? " / " + sym + totalForeign.toLocaleString() : ""}`;
   document.getElementById("trip-budget-display").textContent = totalKrw.toLocaleString() + "원";
-
-  // Refresh add row category
   refreshCategorySelects();
-
   const tbody = document.getElementById("expense-tbody");
   if (!items.length) {
     tbody.innerHTML = `<tr><td colspan="6" class="empty-msg">💸 아래 행에서 지출을 추가하세요</td></tr>`;
@@ -747,15 +876,28 @@ async function deleteReservation(id) {
 }
 
 // ============================================================
-// BUCKET REF (shared collection — trip bucket + 버킷플레이스)
+// BUCKET REF
 // ============================================================
 function bucketRef() { return db.collection("users").doc(currentUser.uid).collection("bucketItems"); }
 
 // ============================================================
 // 가고싶은 곳 (Kanban in trip detail)
+// [NEW] 필터값 localStorage 영구 저장
 // ============================================================
+function onTripBucketFilterChange() {
+  const val = document.getElementById("trip-bucket-region")?.value || "";
+  localStorage.setItem("trip_bucket_region", val);
+  renderTripBucket(scheduleItems.length ? undefined : allBucketItems);
+  loadTripBucketItems();
+}
+
 async function loadTripBucketItems() {
   if (!currentUser) return;
+  // 저장된 필터 복원
+  const saved = localStorage.getItem("trip_bucket_region") || "";
+  const inp = document.getElementById("trip-bucket-region");
+  if (inp && inp.value === "" && saved) inp.value = saved;
+
   const snap = await bucketRef().get().catch(() => ({ docs: [] }));
   const items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
   renderTripBucket(items);
@@ -864,6 +1006,7 @@ async function reloadBucketAll() {
 
 // ============================================================
 // 버킷플레이스 (List/Table view)
+// [NEW] 필터 localStorage 저장/복원 + 정렬
 // ============================================================
 async function loadAllBucketItems() {
   if (!currentUser) return;
@@ -878,11 +1021,92 @@ function toggleBucketFilter() {
   document.getElementById("filter-toggle-btn").classList.toggle("active", bucketFilterVisible);
 }
 
+// [NEW] 버킷 필터값을 localStorage에 저장
+function saveBucketFilter() {
+  const f = {
+    type: document.getElementById("bf-type")?.value || "",
+    country: document.getElementById("bf-country")?.value || "",
+    region: document.getElementById("bf-region")?.value || "",
+    season: document.getElementById("bf-season")?.value || "",
+    unvisited: document.getElementById("bf-unvisited")?.checked || false,
+  };
+  localStorage.setItem("bucket_filter", JSON.stringify(f));
+}
+
+// [NEW] localStorage에서 버킷 필터값 복원
+function restoreBucketFilter() {
+  const raw = localStorage.getItem("bucket_filter");
+  if (!raw) return;
+  try {
+    const f = JSON.parse(raw);
+    const type = document.getElementById("bf-type");
+    const country = document.getElementById("bf-country");
+    const region = document.getElementById("bf-region");
+    const season = document.getElementById("bf-season");
+    const unvisited = document.getElementById("bf-unvisited");
+    // bf-type의 options는 refreshCategorySelects 후에 적용
+    if (country) country.value = f.country || "";
+    if (region) region.value = f.region || "";
+    if (season) season.value = f.season || "";
+    if (unvisited) unvisited.checked = f.unvisited || false;
+    // type은 options 로드 후 적용
+    if (type && f.type) {
+      // option이 없을 수도 있으니 setTimeout으로 지연
+      setTimeout(() => { if (type) type.value = f.type; }, 50);
+    }
+    // 필터 값이 있으면 필터행 펼치기
+    if (f.type || f.country || f.region || f.season || f.unvisited) {
+      bucketFilterVisible = true;
+      document.getElementById("bucket-filter-row").classList.remove("hidden");
+      document.getElementById("filter-toggle-btn").classList.add("active");
+    }
+  } catch {}
+}
+
 function resetBucketFilter() {
   ["bf-country","bf-region"].forEach(id => { const el=document.getElementById(id); if(el) el.value=""; });
   ["bf-type","bf-season"].forEach(id => { const el=document.getElementById(id); if(el) el.value=""; });
   const ck = document.getElementById("bf-unvisited"); if(ck) ck.checked = false;
+  localStorage.removeItem("bucket_filter");
   renderBucketList();
+}
+
+// [NEW] 버킷플레이스 정렬 설정
+function setBucketSort(col) {
+  if (bucketSortCol === col) {
+    bucketSortDir = bucketSortDir === "asc" ? "desc" : "asc";
+  } else {
+    bucketSortCol = col;
+    bucketSortDir = "asc";
+  }
+  updateBucketSortHeaders();
+  renderBucketList();
+}
+
+// [NEW] 정렬 헤더 UI 업데이트
+function updateBucketSortHeaders() {
+  const colMap = { category: 1, country: 2, region: 3, placeName: 4, season: 5 };
+  document.querySelectorAll(".bucket-list-table th.sortable").forEach(th => {
+    th.classList.remove("sort-asc", "sort-desc");
+  });
+  if (bucketSortCol && colMap[bucketSortCol] !== undefined) {
+    const ths = document.querySelectorAll(".bucket-list-table th.sortable");
+    const idx = Object.keys(colMap).indexOf(bucketSortCol);
+    if (ths[idx]) {
+      ths[idx].classList.add(bucketSortDir === "asc" ? "sort-asc" : "sort-desc");
+    }
+  }
+}
+
+// [NEW] 정렬 적용 함수
+function applySortToBucket(items) {
+  if (!bucketSortCol) return items;
+  return [...items].sort((a, b) => {
+    const va = (a[bucketSortCol] || "").toString().toLowerCase();
+    const vb = (b[bucketSortCol] || "").toString().toLowerCase();
+    const cmp = va.localeCompare(vb, "ko");
+    return bucketSortDir === "asc" ? cmp : -cmp;
+  });
 }
 
 function renderBucketList() {
@@ -898,6 +1122,9 @@ function renderBucketList() {
   if (regionF)   items = items.filter(i => (i.region||"").toLowerCase().includes(regionF));
   if (seasonF)   items = items.filter(i => (i.season||"") === seasonF);
   if (unvisited) items = items.filter(i => !i.visited);
+
+  // [NEW] 정렬 적용
+  items = applySortToBucket(items);
 
   const tbody = document.getElementById("bucket-list-tbody"); if (!tbody) return;
   if (!items.length) {
@@ -989,7 +1216,6 @@ async function seedSampleData() {
   btn.textContent = "⏳ 가져오는 중..."; btn.disabled = true;
 
   try {
-    // 1. 삿포로 여행 생성
     const tripRef = await tripsRef().add({
       title: "삿포로 여행",
       country: "일본", city: "삿포로",
@@ -1000,7 +1226,6 @@ async function seedSampleData() {
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     });
 
-    // 2. 일정 데이터 (여행-일정 CSV)
     const scheduleData = [
       {location:"일본 도착(신치토세 공항)", transportation:null, date:"2024-09-27", time:"13:30", content:"길 헤매는 거 30분 포함해야 함.", category:"이동", notes:null},
       {location:"삿포로 이동", transportation:"기차", date:"2024-09-27", time:"14:30", content:"JR쾌속선 타고 이동(1,150~1550엔)", category:"이동", notes:null},
@@ -1013,27 +1238,17 @@ async function seedSampleData() {
       {location:"비에이", transportation:"기차", date:"2024-09-28", time:"09:00", content:"JR쾌속선, 1시간 30분 소요", category:"이동", notes:null},
       {location:"비에이→아오이이케 이동", transportation:"버스", date:"2024-09-28", time:"10:30", content:"시로가네·아오이이케 방면 버스", category:"이동", notes:"https://maps.app.goo.gl/geu3We3ZdECSoqGZ8"},
       {location:"아오이이케", transportation:"버스", date:"2024-09-28", time:"11:00", content:"11시 정도 도착!", category:"관광", notes:null},
-      {location:"아오이이케→흰수염폭포 이동", transportation:null, date:"2024-09-28", time:"11:30", content:"아오이 → 흰수염 이동", category:"이동", notes:"https://maps.app.goo.gl/pf8roi8RWQTxdcTs7"},
       {location:"흰수염폭포", transportation:"버스", date:"2024-09-28", time:"12:00", content:"제일 기대된다", category:"관광", notes:null},
-      {location:"흰수염→챠이 이동", transportation:null, date:"2024-09-28", time:"12:30", content:"아사히카와에키마에 행", category:"이동", notes:"https://maps.app.goo.gl/VTpS9SEmDAKGNbpq5"},
       {location:"챠이", transportation:null, date:"2024-09-28", time:"13:30", content:"마파두부 먹어야지", category:"식사", notes:null},
       {location:"Biei Sabou", transportation:"도보", date:"2024-09-28", time:"16:00", content:"카페 가서 커피 좀 마시고 이동", category:"카페", notes:null},
       {location:"켄과 메리의 나무", transportation:"도보", date:"2024-09-28", time:"17:00", content:"이쁘겠당 / 18시까지 구경", category:"관광", notes:null},
-      {location:"삿포로 이동", transportation:"택시", date:"2024-09-28", time:"18:00", content:"택시 타고 갈거임, 2시간 정도", category:"이동", notes:null},
       {location:"야키니쿠 라이크", transportation:"도보", date:"2024-09-28", time:"20:00", content:"1인 야키니쿠집", category:"식사", notes:"https://maps.app.goo.gl/1BQVjZDELSz2AKu59"},
-      {location:"숙소", transportation:"도보", date:"2024-09-28", time:"21:00", content:"편의점 털자!", category:"숙소", notes:"https://maps.app.goo.gl/M9z7YrLBsMJuguv99"},
       {location:"삿포로→오타루 이동", transportation:"기차", date:"2024-09-29", time:"11:00", content:"JR패스, 3~40분", category:"이동", notes:"https://maps.app.goo.gl/61YiL8NKdjDBVMVu9"},
-      {location:"오타루 운하 이동", transportation:"도보", date:"2024-09-29", time:"11:30", content:"오타루 운하 이동", category:"이동", notes:"https://maps.app.goo.gl/D6KEgPaBdEiVCdku7"},
       {location:"오타루 운하", transportation:null, date:"2024-09-29", time:"12:00", content:"운하 뱃놀이하기, 1시간 정도", category:"체험", notes:null},
       {location:"야부한 소바", transportation:"도보", date:"2024-09-29", time:"13:30", content:"밥 먹자", category:"식사", notes:null},
-      {location:"야부한→사카이마치 구경", transportation:"도보", date:"2024-09-29", time:"14:00", content:"거리 구경", category:"이동", notes:"https://maps.app.goo.gl/p4vwtKc1XFi6RMWT9"},
       {location:"기타이치 홀", transportation:"도보", date:"2024-09-29", time:"15:00", content:"엄청 이쁘겠다", category:"카페", notes:"https://maps.app.goo.gl/GuXUtjMY8eRwqVpR7"},
       {location:"오타루 오르골당", transportation:"도보", date:"2024-09-29", time:"15:30", content:"여행 목적", category:"쇼핑", notes:"https://maps.app.goo.gl/gQtBHvPwxSWL4DgM8"},
-      {location:"오르골당→역 이동", transportation:"도보", date:"2024-09-29", time:"17:00", content:"오르골당에서 역으로", category:"이동", notes:"https://maps.app.goo.gl/56pp6w74CcCFXfJ76"},
-      {location:"오타루→삿포로 이동", transportation:"기차", date:"2024-09-29", time:"18:00", content:"JR패스", category:"이동", notes:null},
-      {location:"스스키노", transportation:"도보", date:"2024-09-29", time:"19:30", content:"스스키노 거리 구경 (돈키호테)", category:"쇼핑", notes:"https://maps.app.goo.gl/AodsNAT437X4BFrw7"},
       {location:"에비소바 이치겐", transportation:"도보", date:"2024-09-29", time:"20:00", content:"밥 먹으러 가자", category:"식사", notes:"https://maps.app.goo.gl/sYHmSBfo4jX8GQ17"},
-      {location:"편의점", transportation:"도보", date:"2024-09-29", time:"20:30", content:"편의점 털고 잘 준비", category:"이동", notes:null},
       {location:"수프카레 스아게", transportation:"도보", date:"2024-09-30", time:null, content:"밥 먹고 바로 이동", category:"식사", notes:null},
       {location:"나카지마 공원", transportation:"택시", date:"2024-09-30", time:null, content:"시간 상황 보고 구경 후 택시 이동", category:"관광", notes:null},
     ];
@@ -1044,7 +1259,6 @@ async function seedSampleData() {
     });
     await schBatch.commit();
 
-    // 3. 예약 데이터
     await tripsRef().doc(tripRef.id).collection("reservations").add({
       type: "숙소", title: "호텔 플러스 호스텔",
       date: "2024-09-27", reservationNumber: "1697650178",
@@ -1052,7 +1266,6 @@ async function seedSampleData() {
       checkin: null, checkout: null, phone: null,
     });
 
-    // 4. 버킷플레이스 데이터 (CSV 기반)
     const bucketData = [
       {placeName:"안반데기", season:null, country:"한국", notes:null, category:"풍경", region:"강원도"},
       {placeName:"태백산", season:null, country:"한국", notes:null, category:"풍경", region:"강원도"},
@@ -1068,61 +1281,24 @@ async function seedSampleData() {
       {placeName:"사가노 대나무 숲", season:"가을", country:"일본", notes:null, category:"풍경", region:"교토"},
       {placeName:"기요미즈데라", season:"가을", country:"일본", notes:null, category:"풍경", region:"교토"},
       {placeName:"철학의 길", season:"가을", country:"일본", notes:null, category:"풍경", region:"교토"},
-      {placeName:"뵤도인", season:"가을", country:"일본", notes:null, category:"풍경", region:"교토"},
-      {placeName:"닝구르 테라스", season:"겨울", country:"일본", notes:null, category:"풍경", region:"훗카이도"},
-      {placeName:"크리스마스 나무", season:"겨울", country:"일본", notes:null, category:"풍경", region:"훗카이도"},
-      {placeName:"오카자키 공원 플리마켓", season:null, country:"일본", notes:"수공예", category:"기념품", region:"교토"},
-      {placeName:"교토니시죠 쿠온", season:null, country:"일본", notes:"카레우동야", category:"맛집", region:"교토"},
       {placeName:"이노다 커피", season:null, country:"일본", notes:"나폴리탄, 타마고 산도", category:"카페", region:"교토"},
       {placeName:"청수사", season:"가을", country:"일본", notes:null, category:"풍경", region:"교토"},
       {placeName:"아라시야마", season:null, country:"일본", notes:"센과 치히로", category:"풍경", region:"교토"},
-      {placeName:"카츠오지", season:null, country:"일본", notes:"센과 치히로", category:"풍경", region:"오사카"},
       {placeName:"금각사", season:null, country:"일본", notes:null, category:"풍경", region:"교토"},
       {placeName:"니시키 시장", season:null, country:"일본", notes:"시장거리", category:"기념품", region:"교토"},
-      {placeName:"도토리 공화국", season:null, country:"일본", notes:"토토로", category:"기념품", region:"교토"},
-      {placeName:"아라시야마 호즈강 뱃놀이", season:null, country:"일본", notes:"43,095~", category:"체험", region:"교토"},
-      {placeName:"난젠지 준세이", season:null, country:"일본", notes:"두부 요리", category:"맛집", region:"교토"},
-      {placeName:"멘야 산다", season:null, country:"일본", notes:"꾸덕한 츠케멘", category:"맛집", region:"교토"},
-      {placeName:"기요미즈시게모리", season:null, country:"일본", notes:null, category:"맛집", region:"교토"},
-      {placeName:"봉래 폭포", season:null, country:"한국", notes:null, category:"풍경", region:"울릉도"},
-      {placeName:"천부해중전망대", season:null, country:"한국", notes:"1인 4000원", category:"풍경", region:"울릉도"},
-      {placeName:"행남해안산책로", season:null, country:"한국", notes:null, category:"풍경", region:"울릉도"},
-      {placeName:"카페 울라", season:null, country:"한국", notes:null, category:"카페", region:"울릉도"},
-      {placeName:"남서일몰전망대", season:null, country:"한국", notes:"1인 4000원(모노레일 별도)", category:"풍경", region:"울릉도"},
-      {placeName:"현포항 해양워터파크", season:null, country:"한국", notes:null, category:"체험", region:"울릉도"},
       {placeName:"흰수염폭포", season:null, country:"일본", notes:null, category:"풍경", region:"훗카이도"},
-      {placeName:"패치워크 로드", season:null, country:"일본", notes:"비에이", category:"풍경", region:"훗카이도"},
-      {placeName:"다이세츠잔 국립공원", season:null, country:"일본", notes:null, category:"풍경", region:"훗카이도"},
-      {placeName:"운하 크루즈", season:null, country:"일본", notes:"오타루, 1800엔", category:"체험", region:"훗카이도"},
-      {placeName:"삿포로 TV타워", season:null, country:"일본", notes:"삿포로, 야경", category:"풍경", region:"훗카이도"},
-      {placeName:"오르골당", season:null, country:"일본", notes:"오타루", category:"기념품", region:"훗카이도"},
-      {placeName:"도요히라가와 벼룩시장", season:null, country:"일본", notes:"기념품", category:"기념품", region:"훗카이도"},
-      {placeName:"잇페코페 돈까스", season:null, country:"일본", notes:"돈까스", category:"맛집", region:"훗카이도"},
-      {placeName:"카오스헤븐", season:null, country:"일본", notes:"스프카레", category:"맛집", region:"훗카이도"},
       {placeName:"아오이이케", season:null, country:"일본", notes:null, category:"풍경", region:"훗카이도"},
-      {placeName:"미야코시야 커피", season:null, country:"일본", notes:null, category:"카페", region:"훗카이도"},
-      {placeName:"카페 모리히코", season:null, country:"일본", notes:null, category:"카페", region:"훗카이도"},
-      {placeName:"다이마루", season:null, country:"일본", notes:"돈까스", category:"맛집", region:"훗카이도"},
-      {placeName:"빈베르", season:null, country:"일본", notes:"야키니꾸, 함박", category:"맛집", region:"훗카이도"},
-      {placeName:"아우루노파인", season:null, country:"일본", notes:null, category:"카페", region:"훗카이도"},
-      {placeName:"기타코보", season:null, country:"일본", notes:null, category:"카페", region:"훗카이도"},
+      {placeName:"오르골당", season:null, country:"일본", notes:"오타루", category:"기념품", region:"훗카이도"},
+      {placeName:"잇페코페 돈까스", season:null, country:"일본", notes:"돈까스", category:"맛집", region:"훗카이도"},
       {placeName:"마지산도", season:null, country:"일본", notes:null, category:"카페", region:"훗카이도"},
-      {placeName:"잇핀", season:null, country:"일본", notes:"부타동", category:"맛집", region:"훗카이도"},
-      {placeName:"수프 스아게(교토)", season:null, country:"일본", notes:null, category:"맛집", region:"교토"},
-      {placeName:"수프 스아게(삿포로)", season:null, country:"일본", notes:"스프카레", category:"맛집", region:"훗카이도"},
-      {placeName:"야부한 소바", season:null, country:"일본", notes:null, category:"맛집", region:"훗카이도"},
       {placeName:"별밤사진관", season:null, country:"한국", notes:"38,000원", category:"체험", region:"제주도"},
-      {placeName:"제주돌고래 탐사", season:null, country:"한국", notes:"29,500원", category:"체험", region:"제주도"},
-      {placeName:"스쿠버다이빙", season:null, country:"한국", notes:"100,000원", category:"체험", region:"제주도"},
       {placeName:"신창풍차해안도로", season:null, country:"한국", notes:null, category:"풍경", region:"제주도"},
     ];
 
-    // Check for existing bucket items to avoid duplicates
     const existingSnap = await bucketRef().get();
     const existingNames = new Set(existingSnap.docs.map(d => d.data().placeName));
     const toAdd = bucketData.filter(b => !existingNames.has(b.placeName));
 
-    // Write in batches of 500
     for (let i = 0; i < toAdd.length; i += 400) {
       const batch = db.batch();
       toAdd.slice(i, i + 400).forEach(b => {
@@ -1150,5 +1326,8 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 document.addEventListener("keydown", e => {
-  if (e.key === "Escape") closeModal("modal-bucket-trip");
+  if (e.key === "Escape") {
+    closeModal("modal-bucket-trip");
+    closeModal("modal-map-view");
+  }
 });
