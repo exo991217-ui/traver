@@ -412,13 +412,35 @@ input[type="date"]::-webkit-inner-spin-button { display: none; }
   box-shadow: var(--shadow-sm);
 }
 .res-col-header {
-  padding: 10px 14px;
+  padding: 8px 12px;
   background: var(--surface2, #eef2ff);
   font-size: 0.82rem;
   font-weight: 800;
   border-bottom: 1.5px solid var(--border-soft);
   color: var(--pd, #4f46e5);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
+.res-col-add-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  border: 1.5px solid var(--pd, #4f46e5);
+  background: var(--surface, #fff);
+  color: var(--pd, #4f46e5);
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  transition: all .15s;
+  font-family: inherit;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.res-col-add-btn:hover { background: var(--pd, #4f46e5); color: #fff; }
 .res-item { padding: 12px 16px; border-bottom: 1px solid var(--border-soft); position: relative; }
 .res-item:last-child { border-bottom: none; }
 .res-item.res-edit-form-wrap { padding: 12px 14px; background: var(--pl, #eef2ff); }
@@ -644,24 +666,64 @@ input[type="date"]::-webkit-inner-spin-button { display: none; }
 .view-toggle .btn { border-radius: 8px; }
 .view-active { background: var(--pd, #4f46e5) !important; color: #fff !important; border-color: transparent !important; }
 
-/* ---- Timetable ---- */
-.timetable-day { margin-bottom: 24px; }
-.timetable-day-label { font-size: 0.82rem; font-weight: 700; color: var(--pd, #4f46e5); margin-bottom: 10px; letter-spacing: -0.01em; }
-.timetable-items { border-left: 3px solid var(--pb, #e0e7ff); padding-left: 18px; display: flex; flex-direction: column; gap: 8px; }
-.timetable-item {
-  background: var(--surface, #fff);
-  border: 1.5px solid var(--border-soft);
-  border-radius: 12px;
-  padding: 11px 16px;
-  display: flex;
-  gap: 14px;
-  transition: border-color .18s, box-shadow .18s;
-  box-shadow: var(--shadow-sm);
+/* ---- Timetable Grid (날짜×시간 캘린더) ---- */
+.timetable-grid-wrap { overflow-x: auto; border-radius: var(--radius-sm); border: 1.5px solid var(--border-soft); }
+.timetable-grid { width: 100%; min-width: 520px; border-collapse: collapse; font-size: 0.8rem; }
+.timetable-grid th {
+  text-align: center;
+  padding: 8px 10px;
+  border: 1px solid var(--border-soft);
+  background: var(--surface2, #eef2ff);
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--pd, #4f46e5);
+  white-space: nowrap;
+  min-width: 110px;
+  position: sticky;
+  top: 0;
+  z-index: 2;
 }
-.timetable-item:hover { border-color: var(--pd, #4f46e5); box-shadow: var(--shadow); }
-.timetable-time { font-size: 0.74rem; color: var(--text-muted); min-width: 38px; padding-top: 2px; font-weight: 700; }
-.timetable-info h4 { font-size: 0.86rem; font-weight: 700; }
-.timetable-info p { font-size: 0.76rem; color: var(--text-muted); margin-top: 2px; }
+.timetable-grid th.time-col-h { width: 52px; min-width: 52px; }
+.timetable-grid td { border: 1px solid var(--border-soft); vertical-align: top; padding: 2px; }
+.timetable-grid .time-slot {
+  text-align: center;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-weight: 700;
+  background: var(--surface2, #eef2ff);
+  white-space: nowrap;
+  padding: 6px 4px;
+  vertical-align: middle;
+  width: 52px;
+  min-width: 52px;
+}
+.timetable-grid .empty-slot { height: 22px; }
+.timetable-grid .empty-slot td:not(.time-slot) { background: var(--bg, #f0f1ff); opacity: .5; }
+.timetable-grid td.timetable-cell { background: #fff; min-height: 30px; }
+
+/* 아이템 카드 */
+.tt-item {
+  background: var(--pl, #eef2ff);
+  border: 1px solid var(--pb, #e0e7ff);
+  border-radius: 7px;
+  padding: 4px 8px;
+  margin: 2px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  line-height: 1.4;
+  cursor: default;
+  transition: border-color .15s;
+}
+.tt-item:hover { border-color: var(--pd, #4f46e5); }
+.tt-item-time { font-size: 0.68rem; color: var(--pd, #4f46e5); font-weight: 800; white-space: nowrap; flex-shrink: 0; }
+.tt-item-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tt-badge { font-size: 0.63rem !important; padding: 1px 5px !important; flex-shrink: 0; line-height: 1.4; }
+.tt-no-time-row td:not(.time-slot) { background: var(--surface2, #eef2ff); }
 
 /* ---- Summary row ---- */
 .summary-row { display: flex; align-items: center; gap: 10px; font-size: 0.82rem; }
@@ -687,27 +749,28 @@ input[type="date"]::-webkit-inner-spin-button { display: none; }
 }
 .wish-cat-label { font-size: 0.82rem; font-weight: 800; color: var(--text); }
 .wish-cat-count { font-size: 0.73rem; color: var(--text-muted); margin-left: auto; background: var(--surface, #fff); padding: 1px 8px; border-radius: 999px; font-weight: 600; }
-.wish-items { padding: 7px; display: flex; flex-direction: column; gap: 3px; min-height: 32px; }
+.wish-items { padding: 5px; display: flex; flex-direction: column; gap: 2px; min-height: 28px; }
 .wish-item {
   background: var(--surface, #fff);
   border: 1.5px solid var(--border-soft);
-  border-radius: 10px;
-  padding: 7px 10px;
-  font-size: 0.82rem;
+  border-radius: 9px;
+  padding: 5px 8px;
+  font-size: 0.81rem;
   font-weight: 600;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   transition: border-color .15s, box-shadow .15s;
-  position: relative;
+  white-space: nowrap;
+  overflow: hidden;
 }
 .wish-item:hover { border-color: var(--pd, #4f46e5); box-shadow: var(--shadow-sm); }
 .wish-item.visited { opacity: .5; }
-.wish-item-text { flex: 1; min-width: 0; }
-.wish-item-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+.wish-item-name { color: var(--text); overflow: hidden; text-overflow: ellipsis; flex-shrink: 1; min-width: 0; }
 .wish-item-name.done { text-decoration: line-through; color: var(--text-muted); }
-.wish-item-sub { font-size: 0.7rem; color: var(--text-muted); font-weight: 400; }
-.wish-item-actions { display: flex; gap: 2px; opacity: 0; transition: opacity .13s; flex-shrink: 0; }
+.wish-item-badges { display: flex; gap: 3px; flex-shrink: 0; }
+.wish-badge { display: inline-flex; align-items: center; padding: 1px 7px; border-radius: 999px; font-size: 0.66rem; font-weight: 700; background: var(--pb, #e0e7ff); color: var(--pd, #4f46e5); white-space: nowrap; }
+.wish-item-actions { display: flex; gap: 2px; opacity: 0; transition: opacity .13s; flex-shrink: 0; margin-left: auto; }
 .wish-item:hover .wish-item-actions { opacity: 1; }
 .visit-toggle {
   width: 18px;
