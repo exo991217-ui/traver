@@ -512,12 +512,28 @@ function openLinkModal(encodedUrl) {
 function openResLinkModal(encodedUrl) {
   const raw = decodeURIComponent(encodedUrl);
   const embedUrl = buildMapEmbedUrl(raw);
-  const frame = document.getElementById("link-preview-frame");
-  const anchor = document.getElementById("link-preview-anchor");
-  const label = document.getElementById("link-preview-url");
-  frame.src = embedUrl;
-  anchor.href = raw;
-  if (label) label.textContent = raw;
+  const isEmbed = embedUrl && (embedUrl.includes("output=embed") || embedUrl.includes("/embed?") || embedUrl.includes("maps/embed"));
+
+  const iframeWrap = document.getElementById("link-iframe-wrap");
+  const externalCard = document.getElementById("link-external-card");
+
+  if (isEmbed) {
+    iframeWrap.classList.remove("hidden");
+    externalCard.classList.add("hidden");
+    document.getElementById("link-preview-frame").src = embedUrl;
+    document.getElementById("link-preview-anchor").href = raw;
+    const label = document.getElementById("link-preview-url");
+    if (label) label.textContent = raw;
+  } else {
+    iframeWrap.classList.add("hidden");
+    externalCard.classList.remove("hidden");
+    document.getElementById("link-preview-frame").src = "";
+    const extUrl = document.getElementById("link-external-url");
+    const extAnchor = document.getElementById("link-external-anchor");
+    if (extUrl) extUrl.textContent = raw;
+    if (extAnchor) extAnchor.href = raw;
+  }
+
   openModal("modal-link-preview");
 }
 
