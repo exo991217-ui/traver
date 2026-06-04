@@ -509,6 +509,18 @@ function openLinkModal(encodedUrl) {
   openModal("modal-link-preview");
 }
 
+function openResLinkModal(encodedUrl) {
+  const raw = decodeURIComponent(encodedUrl);
+  const embedUrl = buildMapEmbedUrl(raw);
+  const frame = document.getElementById("link-preview-frame");
+  const anchor = document.getElementById("link-preview-anchor");
+  const label = document.getElementById("link-preview-url");
+  frame.src = embedUrl;
+  anchor.href = raw;
+  if (label) label.textContent = raw;
+  openModal("modal-link-preview");
+}
+
 // ============================================================
 // UTILITY FUNCTIONS
 // ============================================================
@@ -1025,6 +1037,7 @@ function buildResForm(type) {
     <button class="btn btn-ghost btn-sm" onclick="closeResForm('${type}')">취소</button>
     <button class="btn btn-primary btn-sm" onclick="saveReservation('${type}')">저장</button>
   </div>`;
+  const linkField = `<div class="form-row"><div class="form-group full"><label>링크 <span style="font-weight:400;color:var(--text-muted)">(URL 또는 &lt;iframe&gt; 코드 모두 가능)</span></label><textarea id="rf-link" rows="2" placeholder="https://... 또는 &lt;iframe src=&quot;...&quot;&gt; 코드 붙여넣기" style="resize:vertical;font-size:0.78rem;min-height:54px"></textarea></div></div>`;
   if (type === "항공") return `
     <div class="form-row">
       <div class="form-group"><label>출발지</label><input type="text" id="rf-from" placeholder="인천" /></div>
@@ -1039,7 +1052,8 @@ function buildResForm(type) {
       <div class="form-group"><label>편명</label><input type="text" id="rf-flight" placeholder="QF 1234" /></div>
       <div class="form-group"><label>예약번호</label><input type="text" id="rf-number" placeholder="ABC123" /></div>
     </div>
-    <div class="form-row"><div class="form-group full"><label>비고 / 링크</label><input type="text" id="rf-notes" /></div></div>
+    <div class="form-row"><div class="form-group full"><label>비고</label><input type="text" id="rf-notes" /></div></div>
+    ${linkField}
     ${btn}`;
   if (type === "숙소") return `
     <div class="form-row"><div class="form-group full"><label>숙소명 *</label><input type="text" id="rf-title" placeholder="호텔 플러스 호스텔" /></div></div>
@@ -1051,7 +1065,8 @@ function buildResForm(type) {
       <div class="form-group"><label>전화번호</label><input type="text" id="rf-phone" /></div>
       <div class="form-group"><label>예약확인번호</label><input type="text" id="rf-number" /></div>
     </div>
-    <div class="form-row"><div class="form-group full"><label>비고 / 링크</label><input type="text" id="rf-notes" /></div></div>
+    <div class="form-row"><div class="form-group full"><label>비고</label><input type="text" id="rf-notes" /></div></div>
+    ${linkField}
     ${btn}`;
   return `
     <div class="form-row">
@@ -1061,8 +1076,9 @@ function buildResForm(type) {
     <div class="form-row"><div class="form-group full"><label>예약명 / 장소 *</label><input type="text" id="rf-title" /></div></div>
     <div class="form-row">
       <div class="form-group"><label>예약번호</label><input type="text" id="rf-number" /></div>
-      <div class="form-group"><label>비고 / 링크</label><input type="text" id="rf-notes" /></div>
+      <div class="form-group"><label>비고</label><input type="text" id="rf-notes" /></div>
     </div>
+    ${linkField}
     ${btn}`;
 }
 
@@ -1072,6 +1088,7 @@ function buildResEditFormHtml(type, item) {
     <button class="btn btn-ghost btn-sm" onclick="cancelResEdit()">취소</button>
     <button class="btn btn-primary btn-sm" onclick="updateReservation('${item.id}','${type}')">수정저장</button>
   </div>`;
+  const efLinkField = (val) => `<div class="form-row"><div class="form-group full"><label>링크 <span style="font-weight:400;color:var(--text-muted)">(URL 또는 &lt;iframe&gt; 코드 모두 가능)</span></label><textarea id="ef-link" rows="2" style="resize:vertical;font-size:0.78rem;min-height:54px">${escHtml(val||"")}</textarea></div></div>`;
   if (type === "항공") return `
     <div style="font-size:0.76rem;font-weight:700;color:var(--pd);margin-bottom:6px">✏️ 수정 중</div>
     <div class="form-row">
@@ -1087,7 +1104,8 @@ function buildResEditFormHtml(type, item) {
       <div class="form-group"><label>편명</label><input type="text" id="ef-flight" value="${escHtml(item.flight)}" /></div>
       <div class="form-group"><label>예약번호</label><input type="text" id="ef-number" value="${escHtml(item.reservationNumber)}" /></div>
     </div>
-    <div class="form-row"><div class="form-group full"><label>비고 / 링크</label><input type="text" id="ef-notes" value="${escHtml(item.notes)}" /></div></div>
+    <div class="form-row"><div class="form-group full"><label>비고</label><input type="text" id="ef-notes" value="${escHtml(item.notes)}" /></div></div>
+    ${efLinkField(item.link)}
     ${btn}`;
   if (type === "숙소") return `
     <div style="font-size:0.76rem;font-weight:700;color:var(--pd);margin-bottom:6px">✏️ 수정 중</div>
@@ -1100,7 +1118,8 @@ function buildResEditFormHtml(type, item) {
       <div class="form-group"><label>전화번호</label><input type="text" id="ef-phone" value="${escHtml(item.phone)}" /></div>
       <div class="form-group"><label>예약확인번호</label><input type="text" id="ef-number" value="${escHtml(item.reservationNumber)}" /></div>
     </div>
-    <div class="form-row"><div class="form-group full"><label>비고 / 링크</label><input type="text" id="ef-notes" value="${escHtml(item.notes)}" /></div></div>
+    <div class="form-row"><div class="form-group full"><label>비고</label><input type="text" id="ef-notes" value="${escHtml(item.notes)}" /></div></div>
+    ${efLinkField(item.link)}
     ${btn}`;
   return `
     <div style="font-size:0.76rem;font-weight:700;color:var(--pd);margin-bottom:6px">✏️ 수정 중</div>
@@ -1111,15 +1130,17 @@ function buildResEditFormHtml(type, item) {
     <div class="form-row"><div class="form-group full"><label>예약명 / 장소 *</label><input type="text" id="ef-title" value="${escHtml(item.title)}" /></div></div>
     <div class="form-row">
       <div class="form-group"><label>예약번호</label><input type="text" id="ef-number" value="${escHtml(item.reservationNumber)}" /></div>
-      <div class="form-group"><label>비고 / 링크</label><input type="text" id="ef-notes" value="${escHtml(item.notes)}" /></div>
+      <div class="form-group"><label>비고</label><input type="text" id="ef-notes" value="${escHtml(item.notes)}" /></div>
     </div>
+    ${efLinkField(item.link)}
     ${btn}`;
 }
 
 function closeResForm(type) { document.getElementById("res-form-" + type)?.classList.add("hidden"); }
 
 async function saveReservation(type) {
-  let data = { type, notes: document.getElementById("rf-notes")?.value.trim() || null };
+  const rawLink = document.getElementById("rf-link")?.value.trim() || "";
+  let data = { type, notes: document.getElementById("rf-notes")?.value.trim() || null, link: parseMapInput(rawLink) || (rawLink || null) };
   if (type === "항공") {
     data.from = document.getElementById("rf-from")?.value.trim() || null;
     data.to   = document.getElementById("rf-to")?.value.trim() || null;
@@ -1163,8 +1184,8 @@ async function loadReservations() {
       if (resEditMode && r.id === resEditItemId) {
         return `<div class="res-item res-edit-form-wrap">${buildResEditFormHtml(type, r)}</div>`;
       }
-      const linkHtml = r.notes ? ` ${renderLink(r.notes)}` : "";
-      const textNotes = r.notes && !isUrl(r.notes) ? `<p>${escHtml(r.notes)}</p>` : "";
+      const textNotes = r.notes ? `<p>${escHtml(r.notes)}</p>` : "";
+      const linkBtn = r.link ? `<button class="res-link-btn" onclick="openResLinkModal('${encodeURIComponent(r.link)}')" title="링크 보기">🔗</button>` : "";
       const chkHtml = resEditMode
         ? `<input type="checkbox" class="res-item-check res-row-check" data-id="${r.id}" onchange="onRowCheckChange('res')" />`
         : "";
@@ -1173,9 +1194,10 @@ async function loadReservations() {
           <button class="btn btn-ghost btn-icon" style="font-size:0.75rem" onclick="editReservation('${r.id}','${type}')">✏️</button>
         </div>` : "";
       return `<div class="res-item">
+        ${linkBtn}
         ${chkHtml}
         <div class="res-info">
-          <h4>${escHtml(r.title) || "-"}${linkHtml}</h4>
+          <h4>${escHtml(r.title) || "-"}</h4>
           ${type==="항공" ? `<p>${[r.depart?.replace("T"," "), r.arrive?.replace("T"," "), r.flight, r.reservationNumber].filter(Boolean).join(" · ")}</p>` : ""}
           ${type==="숙소" ? `<p>${[r.checkin?.replace("T"," "), r.checkout?.replace("T"," "), r.phone, r.reservationNumber].filter(Boolean).join(" · ")}</p>` : ""}
           ${type==="기타" ? `<p>${[r.date, r.subCategory, r.reservationNumber].filter(Boolean).join(" · ")}</p>` : ""}
@@ -1206,7 +1228,8 @@ function cancelResEdit() {
 }
 
 async function updateReservation(id, type) {
-  let data = { notes: document.getElementById("ef-notes")?.value.trim() || null };
+  const rawLink = document.getElementById("ef-link")?.value.trim() || "";
+  let data = { notes: document.getElementById("ef-notes")?.value.trim() || null, link: parseMapInput(rawLink) || (rawLink || null) };
   if (type === "항공") {
     data.from = document.getElementById("ef-from")?.value.trim() || null;
     data.to   = document.getElementById("ef-to")?.value.trim() || null;
