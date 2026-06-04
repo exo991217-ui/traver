@@ -862,11 +862,15 @@ function renderTimetable(items) {
   if (!wrap) return;
   if (!items.length) { wrap.innerHTML = `<div class="empty-msg">📅 일정이 없어요</div>`; return; }
 
+  // '이동' 분류 제외
+  const ttItems = items.filter(i => (i.category || "") !== "이동");
+
   // 고유 날짜 정렬
-  const dates = [...new Set(items.map(i => i.date || "날짜 미정"))].sort();
+  const dates = [...new Set(ttItems.map(i => i.date || "날짜 미정"))].sort();
+  if (!dates.length) { wrap.innerHTML = `<div class="empty-msg">📅 표시할 일정이 없어요 (이동 제외)</div>`; return; }
 
   // 시간 범위 계산
-  const hourNums = items.filter(i => i.time).map(i => parseInt(i.time));
+  const hourNums = ttItems.filter(i => i.time).map(i => parseInt(i.time));
   const minH = hourNums.length ? Math.max(0, Math.min(...hourNums) - 1) : 7;
   const maxH = hourNums.length ? Math.min(24, Math.max(...hourNums) + 1) : 22;
   const slots = [];
@@ -874,9 +878,9 @@ function renderTimetable(items) {
 
   // 항목 조회 헬퍼
   const itemsForSlot = (date, slotHour) =>
-    items.filter(i => (i.date || "날짜 미정") === date && i.time && parseInt(i.time) === slotHour);
+    ttItems.filter(i => (i.date || "날짜 미정") === date && i.time && parseInt(i.time) === slotHour);
   const itemsNoTime = (date) =>
-    items.filter(i => (i.date || "날짜 미정") === date && !i.time);
+    ttItems.filter(i => (i.date || "날짜 미정") === date && !i.time);
 
   // 시작일 기준 N일차 레이블
   const startDate = dates.find(d => d !== "날짜 미정") || "";
@@ -898,26 +902,31 @@ function renderTimetable(items) {
     const { line1, line2 } = dayLabel(d);
     html += `<th>${line1}${line2 ? `<br><span style="font-weight:500;font-size:0.72rem;color:var(--text-muted)">${line2}</span>` : ""}</th>`;
   });
-  html += `</tr></thead><tbody>`;
+  html += `</tr>`;
 
-  // 시간 없는 항목 행
+  // 시간 없는 항목 → 날짜별 핀 카드 (두번째 헤더 행)
   const hasNoTime = dates.some(d => itemsNoTime(d).length > 0);
   if (hasNoTime) {
-    html += `<tr class="tt-no-time-row"><td class="time-slot">-</td>`;
+    html += `<tr class="tt-pinned-row"><th class="time-col-h tt-pinned-label">📌</th>`;
     dates.forEach(date => {
-      html += `<td class="timetable-cell">${itemsNoTime(date).map(renderTTItem).join("")}</td>`;
+      const ni = itemsNoTime(date);
+      html += `<th class="tt-pinned-cell">${ni.length
+        ? ni.map(s => `<span class="tt-pin-chip">${escHtml(s.location || s.content || "-")}${s.category ? `<span class="badge badge-${s.category.replace(/\//g,"\\/")} tt-badge" style="margin-left:3px">${s.category}</span>` : ""}</span>`).join("")
+        : ""}</th>`;
     });
     html += `</tr>`;
   }
 
+  html += `</thead><tbody>`;
+
   // 시간별 행
   slots.forEach(slot => {
     const slotH = parseInt(slot);
-    const rowHasItems = dates.some(d => itemsForSlot(d, slot).length > 0);
+    const rowHasItems = dates.some(d => itemsForSlot(d, slotH).length > 0);
     html += `<tr class="${rowHasItems ? "has-items" : "empty-slot"}">`;
     html += `<td class="time-slot">${slot}</td>`;
     dates.forEach(date => {
-      const ti = itemsForSlot(date, slot);
+      const ti = itemsForSlot(date, slotH);
       html += `<td class="timetable-cell">${ti.map(renderTTItem).join("")}</td>`;
     });
     html += `</tr>`;
@@ -932,10 +941,8 @@ function renderTTItem(s) {
     ? `<span class="badge badge-${s.category.replace(/\//g,"\\/")} tt-badge">${s.category}</span>` : "";
   const transBadge = s.transportation
     ? `<span class="badge badge-trans-other tt-badge">${escHtml(s.transportation)}</span>` : "";
-  const minutes = s.time ? s.time.slice(3, 5) : "";
-  const timeLabel = (minutes && minutes !== "00") ? `<span class="tt-item-time">${s.time}</span>` : "";
-  const content = escHtml(s.content || s.location || "-");
-  return `<div class="tt-item">${timeLabel}<span class="tt-item-label">${content}</span>${catBadge}${transBadge}</div>`;
+  const label = escHtml(s.location || s.content || "-");
+  return `<div class="tt-item"><span class="tt-item-label">${label}</span>${catBadge}${transBadge}</div>`;
 }
 
 // ============================================================
@@ -1377,12 +1384,11 @@ function renderTripBucket(items) {
       <div class="wish-items">
         ${catItems.map(item => {
           const regionBadge = item.region ? `<span class="wish-badge">${escHtml(item.region)}</span>` : "";
-          const countryBadge = item.country ? `<span class="wish-badge" style="background:var(--pb);opacity:.8">${escHtml(item.country)}</span>` : "";
           return `
           <div class="wish-item ${item.visited?"visited":""}">
             <button class="visit-toggle ${item.visited?"done":""}" onclick="toggleVisited('${item.id}',${item.visited})">${item.visited?"✓":""}</button>
             <span class="wish-item-name ${item.visited?"done":""}">${escHtml(item.placeName)}</span>
-            <span class="wish-item-badges">${regionBadge}${countryBadge}</span>
+            <span class="wish-item-badges">${regionBadge}</span>
             <div class="wish-item-actions">
               <button class="btn btn-ghost btn-icon" style="width:22px;height:22px;padding:0;color:var(--text-muted)" onclick="deleteBucketItem('${item.id}')" title="삭제">${ICON_TRASH}</button>
             </div>
