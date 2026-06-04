@@ -856,27 +856,86 @@ async function deleteSchedule(id) {
   await schedulesRef().doc(id).delete(); showToast("삭제됐어요"); loadSchedules();
 }
 
-// ---- Timetable ----
+// ---- Timetable (날짜 × 시간 캘린더 그리드) ----
 function renderTimetable(items) {
   const wrap = document.getElementById("schedule-timetable-view");
   if (!wrap) return;
   if (!items.length) { wrap.innerHTML = `<div class="empty-msg">📅 일정이 없어요</div>`; return; }
-  const byDate = {};
-  items.forEach(s => { const d = s.date || "날짜 미정"; (byDate[d] = byDate[d] || []).push(s); });
-  wrap.innerHTML = Object.keys(byDate).sort().map(date => `
-    <div class="timetable-day">
-      <div class="timetable-day-label">📅 ${date === "날짜 미정" ? date : formatDateShort(date)}</div>
-      <div class="timetable-items">
-        ${byDate[date].map(s => `
-          <div class="timetable-item">
-            <div class="timetable-time">${s.time || "-"}</div>
-            <div class="timetable-info">
-              <h4>${escHtml(s.content) || "-"}</h4>
-              <p>${[s.location, s.category, s.transportation].filter(Boolean).map(escHtml).join(" · ") || ""}</p>
-            </div>
-          </div>`).join("")}
-      </div>
-    </div>`).join("");
+
+  // 고유 날짜 정렬
+  const dates = [...new Set(items.map(i => i.date || "날짜 미정"))].sort();
+
+  // 시간 범위 계산
+  const hourNums = items.filter(i => i.time).map(i => parseInt(i.time));
+  const minH = hourNums.length ? Math.max(0, Math.min(...hourNums) - 1) : 7;
+  const maxH = hourNums.length ? Math.min(24, Math.max(...hourNums) + 1) : 22;
+  const slots = [];
+  for (let h = minH; h <= maxH; h++) slots.push(h < 10 ? "0" + h + ":00" : h + ":00");
+
+  // 항목 조회 헬퍼
+  const itemsForSlot = (date, slotHour) =>
+    items.filter(i => (i.date || "날짜 미정") === date && i.time && parseInt(i.time) === slotHour);
+  const itemsNoTime = (date) =>
+    items.filter(i => (i.date || "날짜 미정") === date && !i.time);
+
+  // 시작일 기준 N일차 레이블
+  const startDate = dates.find(d => d !== "날짜 미정") || "";
+  const dayLabel = (date) => {
+    if (date === "날짜 미정") return { line1: "날짜 미정", line2: "" };
+    const parts = date.split("-");
+    const mmdd = `${parts[1]}/${parts[2]}`;
+    if (startDate && startDate !== "날짜 미정") {
+      const diff = Math.round((new Date(date) - new Date(startDate)) / 86400000) + 1;
+      return { line1: `${diff}일차`, line2: mmdd };
+    }
+    return { line1: mmdd, line2: "" };
+  };
+
+  // HTML 생성
+  let html = `<div class="timetable-grid-wrap"><table class="timetable-grid"><thead><tr>
+    <th class="time-col-h">시간</th>`;
+  dates.forEach(d => {
+    const { line1, line2 } = dayLabel(d);
+    html += `<th>${line1}${line2 ? `<br><span style="font-weight:500;font-size:0.72rem;color:var(--text-muted)">${line2}</span>` : ""}</th>`;
+  });
+  html += `</tr></thead><tbody>`;
+
+  // 시간 없는 항목 행
+  const hasNoTime = dates.some(d => itemsNoTime(d).length > 0);
+  if (hasNoTime) {
+    html += `<tr class="tt-no-time-row"><td class="time-slot">-</td>`;
+    dates.forEach(date => {
+      html += `<td class="timetable-cell">${itemsNoTime(date).map(renderTTItem).join("")}</td>`;
+    });
+    html += `</tr>`;
+  }
+
+  // 시간별 행
+  slots.forEach(slot => {
+    const slotH = parseInt(slot);
+    const rowHasItems = dates.some(d => itemsForSlot(d, slot).length > 0);
+    html += `<tr class="${rowHasItems ? "has-items" : "empty-slot"}">`;
+    html += `<td class="time-slot">${slot}</td>`;
+    dates.forEach(date => {
+      const ti = itemsForSlot(date, slot);
+      html += `<td class="timetable-cell">${ti.map(renderTTItem).join("")}</td>`;
+    });
+    html += `</tr>`;
+  });
+
+  html += `</tbody></table></div>`;
+  wrap.innerHTML = html;
+}
+
+function renderTTItem(s) {
+  const catBadge = s.category
+    ? `<span class="badge badge-${s.category.replace(/\//g,"\\/")} tt-badge">${s.category}</span>` : "";
+  const transBadge = s.transportation
+    ? `<span class="badge badge-trans-other tt-badge">${escHtml(s.transportation)}</span>` : "";
+  const minutes = s.time ? s.time.slice(3, 5) : "";
+  const timeLabel = (minutes && minutes !== "00") ? `<span class="tt-item-time">${s.time}</span>` : "";
+  const content = escHtml(s.content || s.location || "-");
+  return `<div class="tt-item">${timeLabel}<span class="tt-item-label">${content}</span>${catBadge}${transBadge}</div>`;
 }
 
 // ============================================================
@@ -1316,17 +1375,19 @@ function renderTripBucket(items) {
         <span class="wish-cat-count">${catItems.length}곳</span>
       </div>
       <div class="wish-items">
-        ${catItems.map(item => `
+        ${catItems.map(item => {
+          const regionBadge = item.region ? `<span class="wish-badge">${escHtml(item.region)}</span>` : "";
+          const countryBadge = item.country ? `<span class="wish-badge" style="background:var(--pb);opacity:.8">${escHtml(item.country)}</span>` : "";
+          return `
           <div class="wish-item ${item.visited?"visited":""}">
             <button class="visit-toggle ${item.visited?"done":""}" onclick="toggleVisited('${item.id}',${item.visited})">${item.visited?"✓":""}</button>
-            <div class="wish-item-text">
-              <div class="wish-item-name ${item.visited?"done":""}">${escHtml(item.placeName)}</div>
-              ${item.region||item.country ? `<div class="wish-item-sub">${[item.region,item.country].filter(Boolean).map(escHtml).join(", ")}</div>` : ""}
-            </div>
+            <span class="wish-item-name ${item.visited?"done":""}">${escHtml(item.placeName)}</span>
+            <span class="wish-item-badges">${regionBadge}${countryBadge}</span>
             <div class="wish-item-actions">
-              <button class="btn btn-ghost btn-icon" style="width:24px;height:24px;padding:0" onclick="deleteBucketItem('${item.id}')" title="삭제">${ICON_TRASH}</button>
+              <button class="btn btn-ghost btn-icon" style="width:22px;height:22px;padding:0;color:var(--text-muted)" onclick="deleteBucketItem('${item.id}')" title="삭제">${ICON_TRASH}</button>
             </div>
-          </div>`).join("")}
+          </div>`;
+        }).join("")}
       </div>
     </div>`;
   }).filter(Boolean).join("");
