@@ -712,9 +712,8 @@ async function loadSchedules() {
 }
 
 function buildMapBtn(s) {
-  const mapLink = s.mapUrl || (isUrl(s.notes) ? s.notes : null);
-  if (!mapLink) return "";
-  const dataUrl = encodeURIComponent(mapLink);
+  if (!s.mapUrl) return "";
+  const dataUrl = encodeURIComponent(s.mapUrl);
   const dataLoc = encodeURIComponent(s.location || "");
   return `<button class="map-icon-btn" data-url="${dataUrl}" data-loc="${dataLoc}" onclick="onMapBtnClick(this)" title="지도 열기">🗺️</button>`;
 }
@@ -742,7 +741,7 @@ function renderScheduleTable(items) {
     tbody.innerHTML = items.map(s => {
       const catBadge = s.category ? `<span class="badge badge-${s.category.replace(/\//g,"\\/")}"> ${s.category}</span>` : "-";
       const mapBtn = buildMapBtn(s);
-      const notesDisplay = s.mapUrl && isUrl(s.notes) ? "-" : renderLink(s.notes, "비고");
+      const notesDisplay = renderLink(s.notes, "비고");
       return `<tr>
         <td>${catBadge}</td>
         <td style="white-space:nowrap;font-size:0.78rem">${formatDateShort(s.date)}</td>
@@ -761,8 +760,8 @@ function renderScheduleTable(items) {
 // 편집 모드 행 — 체크박스만, 저장/삭제 버튼 없음
 function renderScheduleEditModeRow(s, cats) {
   const catOptions = cats.map(c => `<option${c===s.category?" selected":""}>${c}</option>`).join("");
-  const mapUrl = s.mapUrl || (isUrl(s.notes) ? s.notes : "");
-  const notesVal = s.mapUrl ? (s.notes||"") : (isUrl(s.notes) ? "" : (s.notes||""));
+  const mapUrl = s.mapUrl || "";
+  const notesVal = s.notes || "";
   const isChecked = dirtyScheduleIds.has(s.id);
   return `<tr class="em-row" data-id="${s.id}">
     <td><select id="em-cat-${s.id}" style="min-width:60px" onchange="markDirty('schedule','${s.id}')"><option value="">분류</option>${catOptions}</select></td>
@@ -772,7 +771,7 @@ function renderScheduleEditModeRow(s, cats) {
     <td><input type="text" id="em-content-${s.id}" value="${escHtml(s.content)}" placeholder="내용" oninput="markDirty('schedule','${s.id}')" onkeydown="handleEditKeydown(event,'schedule')" /></td>
     <td><input type="text" id="em-trans-${s.id}" value="${escHtml(s.transportation)}" placeholder="교통편" oninput="markDirty('schedule','${s.id}')" onkeydown="handleEditKeydown(event,'schedule')" /></td>
     <td><input type="text" id="em-notes-${s.id}" value="${escHtml(notesVal)}" placeholder="비고" oninput="markDirty('schedule','${s.id}')" onkeydown="handleEditKeydown(event,'schedule')" /></td>
-    <td><input type="url" id="em-mapurl-${s.id}" value="${escHtml(mapUrl)}" placeholder="지도 링크" style="min-width:100px" oninput="markDirty('schedule','${s.id}')" onkeydown="handleEditKeydown(event,'schedule')" /></td>
+    <td><input type="text" id="em-mapurl-${s.id}" value="${escHtml(mapUrl)}" placeholder="지도 링크 또는 iframe 코드" style="min-width:100px" oninput="markDirty('schedule','${s.id}')" onkeydown="handleEditKeydown(event,'schedule')" /></td>
     <td style="text-align:center;padding:4px 4px">
       <input type="checkbox" class="row-check sch-row-check" id="sch-check-${s.id}" data-id="${s.id}" ${isChecked?"checked":""} onchange="onRowCheckChange('schedule')" />
     </td>
@@ -807,7 +806,7 @@ async function saveEditModeRow(id, silent) {
     content: document.getElementById("em-content-" + id)?.value.trim() || null,
     transportation: document.getElementById("em-trans-" + id)?.value.trim() || null,
     notes: notesRaw,
-    mapUrl: isUrl(mapUrl) ? mapUrl : null,
+    mapUrl: parseMapInput(mapUrl) || null,
   };
   await schedulesRef().doc(id).update(updateData);
   // 로컬 배열 즉시 반영
@@ -832,7 +831,7 @@ async function saveScheduleRow() {
     content: document.getElementById("sch-add-content").value.trim() || null,
     transportation: document.getElementById("sch-add-trans").value.trim() || null,
     notes: document.getElementById("sch-add-notes").value.trim() || null,
-    mapUrl: isUrl(mapUrlRaw) ? mapUrlRaw : null,
+    mapUrl: parseMapInput(mapUrlRaw) || null,
   });
   showToast("일정 추가 완료 🎉");
   ["sch-add-cat","sch-add-time","sch-add-loc","sch-add-content","sch-add-trans","sch-add-notes","sch-add-mapurl"]
@@ -1160,7 +1159,8 @@ async function loadReservations() {
       if (resEditMode && r.id === resEditItemId) {
         return `<div class="res-item res-edit-form-wrap">${buildResEditFormHtml(type, r)}</div>`;
       }
-      const notesHtml = r.notes ? `<p>${renderLink(r.notes)}</p>` : "";
+      const linkHtml = r.notes ? ` ${renderLink(r.notes)}` : "";
+      const textNotes = r.notes && !isUrl(r.notes) ? `<p>${escHtml(r.notes)}</p>` : "";
       const chkHtml = resEditMode
         ? `<input type="checkbox" class="res-item-check res-row-check" data-id="${r.id}" onchange="onRowCheckChange('res')" />`
         : "";
@@ -1171,11 +1171,11 @@ async function loadReservations() {
       return `<div class="res-item">
         ${chkHtml}
         <div class="res-info">
-          <h4>${escHtml(r.title) || "-"}</h4>
+          <h4>${escHtml(r.title) || "-"}${linkHtml}</h4>
           ${type==="항공" ? `<p>${[r.depart?.replace("T"," "), r.arrive?.replace("T"," "), r.flight, r.reservationNumber].filter(Boolean).join(" · ")}</p>` : ""}
           ${type==="숙소" ? `<p>${[r.checkin?.replace("T"," "), r.checkout?.replace("T"," "), r.phone, r.reservationNumber].filter(Boolean).join(" · ")}</p>` : ""}
           ${type==="기타" ? `<p>${[r.date, r.subCategory, r.reservationNumber].filter(Boolean).join(" · ")}</p>` : ""}
-          ${notesHtml}
+          ${textNotes}
         </div>
         ${actions}
       </div>`;
