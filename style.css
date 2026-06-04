@@ -393,13 +393,13 @@ input[type="date"]::-webkit-inner-spin-button { display: none; }
   position: absolute;
   top: 8px;
   right: 10px;
-  width: 26px;
-  height: 26px;
-  border-radius: 6px;
-  border: 1.5px solid var(--border);
-  background: var(--surface, #fff);
+  width: 24px;
+  height: 24px;
+  border-radius: 5px;
+  border: none;
+  background: transparent;
   cursor: pointer;
-  font-size: 0.82rem;
+  font-size: 0.88rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -408,7 +408,7 @@ input[type="date"]::-webkit-inner-spin-button { display: none; }
   padding: 0;
   z-index: 1;
 }
-.res-link-btn:hover { background: var(--pl, #eef2ff); border-color: var(--pd, #4f46e5); transform: scale(1.08); }
+.res-link-btn:hover { background: var(--pl, #eef2ff); transform: scale(1.1); }
 .res-item-check {
   position: absolute;
   top: 10px;
