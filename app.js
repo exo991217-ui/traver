@@ -37,6 +37,7 @@ let tripBucketEditId = null;
 let currentView = "table";
 let tripFilter = "all";
 let allBucketItems = [];
+let expenseItems = [];          // 로컬 캐시 — Firestore 재조회 없이 렌더링
 let bucketRegionTab = "all";
 
 // 편집 모드 dirty 추적 (편집된 행 자동 체크)
@@ -286,6 +287,7 @@ async function openTrip(tripId) {
   currentTripId = tripId;
   scheduleEditId = null; scheduleEditMode = false; scheduleAddOpen = false;
   expenseEditId = null; expenseEditMode = false; expenseAddOpen = false;
+  bucketEditMode = false; bucketAddModalEditId = null;
   resEditMode = false; resEditItemId = null;
   dirtyScheduleIds.clear(); dirtyExpenseIds.clear(); dirtyBucketIds.clear();
 
@@ -296,14 +298,19 @@ async function openTrip(tripId) {
   loadSchedules(); loadExpenses(); loadReservations(); loadTripBucketItems();
 
   // 편집 모드 UI 초기화
-  ["schedule-edit-mode-btn","expense-edit-mode-btn","res-edit-mode-btn"].forEach(id => {
+  ["schedule-edit-mode-btn","expense-edit-mode-btn","res-edit-mode-btn","bucket-edit-mode-btn"].forEach(id => {
     document.getElementById(id)?.classList.remove("active");
   });
-  ["edit-mode-banner","expense-edit-banner","res-edit-banner"].forEach(id => {
+  ["edit-mode-banner","expense-edit-banner","res-edit-banner","bucket-edit-banner"].forEach(id => {
     document.getElementById(id)?.classList.add("hidden");
   });
   document.getElementById("schedule-table")?.classList.remove("edit-mode-on");
   document.getElementById("expense-table")?.classList.remove("edit-mode-on");
+  // 액션 컬럼 width 초기화 (편집 모드 중 이동 시 체크박스 열이 남는 것 방지)
+  ["sch-action-col","exp-action-col","bucket-action-col"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.textContent = ""; el.style.width = "0"; el.style.padding = "0"; }
+  });
 }
 
 function renderTripInfo() {
@@ -496,7 +503,10 @@ function openMapModal(notesUrl, locationName) {
 
 function openLinkModal(encodedUrl) {
   const url = decodeURIComponent(encodedUrl);
-  window.open(url, "_blank", "noreferrer");
+  document.getElementById("link-preview-url").textContent = url;
+  document.getElementById("link-preview-frame").src = url;
+  document.getElementById("link-preview-anchor").href = url;
+  openModal("modal-link-preview");
 }
 
 // ============================================================
@@ -586,22 +596,39 @@ function getCheckedIds(type) {
 }
 
 // 선택 항목 저장
+// ★ 저장 후 Firestore를 다시 fetch하지 않고 로컬 배열을 바로 렌더링한다.
+//    get() 이 캐시를 반환해 수정 전 데이터로 롤백되는 버그를 방지함.
 async function saveChecked(type) {
   const ids = getCheckedIds(type);
   if (!ids.length) { showToast("저장할 항목을 선택해주세요"); return; }
   let saved = 0;
   for (const id of ids) {
     try {
-      if (type === "schedule") await saveEditModeRow(id, true);
-      else if (type === "expense") await saveExpenseEditModeRow(id, true);
-      else if (type === "bucket") await saveBucketEditModeRow(id, true);
-      saved++;
+      let ok = false;
+      if (type === "schedule") ok = await saveEditModeRow(id, true);
+      else if (type === "expense") ok = await saveExpenseEditModeRow(id, true);
+      else if (type === "bucket") ok = await saveBucketEditModeRow(id, true);
+      if (ok) saved++;
     } catch(e) { console.warn("save error", id, e); }
   }
+  if (!saved) { showToast("저장할 내용이 없어요 (필수 항목 확인)"); return; }
   showToast(saved + "개 저장 완료 ✅");
-  if (type === "schedule") { dirtyScheduleIds.clear(); loadSchedules(); }
-  else if (type === "expense") { dirtyExpenseIds.clear(); loadExpenses(); }
-  else if (type === "bucket") { dirtyBucketIds.clear(); reloadBucketAll(); }
+  // 로컬 배열로 즉시 재렌더링 (Firestore 캐시 롤백 방지)
+  if (type === "schedule") {
+    dirtyScheduleIds.clear();
+    renderScheduleTable(scheduleItems);
+    renderTimetable(scheduleItems);
+    updateCheckedCount("schedule");
+  } else if (type === "expense") {
+    dirtyExpenseIds.clear();
+    renderExpenses(expenseItems);
+    updateCheckedCount("expense");
+  } else if (type === "bucket") {
+    dirtyBucketIds.clear();
+    renderBucketList();
+    renderTripBucket(allBucketItems);
+    updateCheckedCount("bucket");
+  }
 }
 
 // 선택 항목 삭제
@@ -766,12 +793,13 @@ function handleEditKeydown(event, type) {
 }
 
 // 단건 저장 (saveChecked에서 호출, silent=true 이면 toast 없음)
+// 로컬 scheduleItems 배열을 즉시 업데이트해 Firestore 캐시 롤백을 방지함
 async function saveEditModeRow(id, silent) {
   const date = document.getElementById("em-date-" + id)?.value;
-  if (!date) { if (!silent) showToast("날짜를 입력해주세요"); return; }
+  if (!date) { if (!silent) showToast("날짜를 입력해주세요"); return false; }
   const mapUrl = document.getElementById("em-mapurl-" + id)?.value.trim() || null;
   const notesRaw = document.getElementById("em-notes-" + id)?.value.trim() || null;
-  await schedulesRef().doc(id).update({
+  const updateData = {
     category: document.getElementById("em-cat-" + id)?.value || null,
     date,
     time: document.getElementById("em-time-" + id)?.value || null,
@@ -780,8 +808,13 @@ async function saveEditModeRow(id, silent) {
     transportation: document.getElementById("em-trans-" + id)?.value.trim() || null,
     notes: notesRaw,
     mapUrl: isUrl(mapUrl) ? mapUrl : null,
-  });
+  };
+  await schedulesRef().doc(id).update(updateData);
+  // 로컬 배열 즉시 반영
+  const idx = scheduleItems.findIndex(s => s.id === id);
+  if (idx !== -1) scheduleItems[idx] = { ...scheduleItems[idx], ...updateData };
   if (!silent) showToast("저장 완료 ✅");
+  return true;
 }
 
 function startEditSchedule(id) { scheduleEditId = id; loadSchedules(); }
@@ -873,9 +906,9 @@ function toggleExpenseAddForm() {
 
 async function loadExpenses() {
   const snap = await expensesRef().orderBy("date").get().catch(() => ({ docs: [] }));
-  let items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-  items.sort((a,b) => (a.date||"").localeCompare(b.date||""));
-  renderExpenses(items);
+  expenseItems = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  expenseItems.sort((a,b) => (a.date||"").localeCompare(b.date||""));
+  renderExpenses(expenseItems);
 }
 
 function renderExpenses(items) {
@@ -926,15 +959,20 @@ function renderExpenseEditModeRow(e, sym, cats) {
 
 async function saveExpenseEditModeRow(id, silent) {
   const title = document.getElementById("em-exp-title-" + id)?.value.trim();
-  if (!title) { if (!silent) showToast("제목을 입력해주세요"); return; }
-  await expensesRef().doc(id).update({
+  if (!title) { if (!silent) showToast("제목을 입력해주세요"); return false; }
+  const updateData = {
     category: document.getElementById("em-exp-cat-" + id)?.value || null,
     date: document.getElementById("em-exp-date-" + id)?.value || null,
     title,
     amountKrw: document.getElementById("em-exp-krw-" + id)?.value ? parseInt(document.getElementById("em-exp-krw-" + id).value) : null,
     amountForeign: document.getElementById("em-exp-foreign-" + id)?.value ? parseFloat(document.getElementById("em-exp-foreign-" + id).value) : null,
-  });
+  };
+  await expensesRef().doc(id).update(updateData);
+  // 로컬 배열 즉시 반영
+  const idx = expenseItems.findIndex(e => e.id === id);
+  if (idx !== -1) expenseItems[idx] = { ...expenseItems[idx], ...updateData };
   if (!silent) showToast("저장 완료 ✅");
+  return true;
 }
 
 async function saveExpenseRow() {
