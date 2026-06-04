@@ -666,6 +666,30 @@ input[type="date"]::-webkit-inner-spin-button { display: none; }
 .view-toggle .btn { border-radius: 8px; }
 .view-active { background: var(--pd, #4f46e5) !important; color: #fff !important; border-color: transparent !important; }
 
+/* ---- Hover-to-edit row animation ---- */
+.clickable-row {
+  cursor: pointer;
+  transition: background .13s ease, box-shadow .13s ease, transform .13s ease;
+  position: relative;
+}
+.clickable-row:hover {
+  background: var(--pl, #eef2ff) !important;
+  box-shadow: inset 3px 0 0 var(--pd, #4f46e5);
+  transform: translateX(1px);
+}
+.data-table .clickable-row:hover td { background: transparent; }
+
+/* locked state — disable hover & pointer */
+body.page-locked .clickable-row { cursor: default !important; }
+body.page-locked .clickable-row:hover { background: inherit !important; box-shadow: none !important; transform: none !important; }
+body.page-locked .wish-item { cursor: default !important; }
+body.page-locked .wish-item:hover { border-color: var(--border-soft) !important; box-shadow: none !important; }
+body.page-locked .res-item { cursor: default !important; }
+
+/* lock btn — active/locked state */
+#lock-btn.locked { color: var(--danger, #ef4444); background: rgba(239,68,68,.08); border-color: rgba(239,68,68,.25); }
+#lock-btn { transition: all .15s; }
+
 /* ---- Timetable Grid (날짜×시간 캘린더) ---- */
 .timetable-grid-wrap { overflow-x: auto; border-radius: var(--radius-sm); border: 1.5px solid var(--border-soft); }
 .timetable-grid { width: 100%; min-width: 520px; border-collapse: collapse; font-size: 0.8rem; }
