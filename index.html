@@ -185,6 +185,10 @@
       <div class="section-header">
         <span class="section-title">📅 여행 일정</span>
         <div class="section-toolbar">
+          <!-- 편집 모드 토글 (아이콘 버튼) -->
+          <button class="icon-btn" id="schedule-edit-mode-btn" onclick="toggleScheduleEditMode()" title="편집 모드">
+            ✏️
+          </button>
           <div class="view-toggle">
             <button class="btn btn-outline btn-sm view-active" id="view-table-btn" onclick="setView('table')">목록</button>
             <button class="btn btn-outline btn-sm" id="view-time-btn" onclick="setView('timetable')">시간표</button>
@@ -192,13 +196,21 @@
         </div>
       </div>
       <div class="section-body">
+        <!-- 편집 모드 안내 배너 -->
+        <div id="edit-mode-banner" class="hidden" style="background:var(--pb,#FFEDD5);border:1px solid var(--p,#FDBA74);border-radius:8px;padding:7px 12px;margin-bottom:10px;font-size:0.78rem;color:var(--pd,#F97316);font-weight:600;display:flex;align-items:center;justify-content:space-between;">
+          <span>✏️ 편집 모드 — 행을 직접 수정하거나 삭제하세요</span>
+          <button class="btn btn-primary btn-sm" onclick="toggleScheduleEditMode()" style="font-size:0.72rem;padding:3px 10px;">완료</button>
+        </div>
         <div id="schedule-table-view">
           <div class="table-wrap">
-            <table class="data-table">
+            <table class="data-table" id="schedule-table">
               <thead>
                 <tr>
                   <th>분류</th><th>날짜</th><th>시간</th><th>장소</th>
-                  <th>내용</th><th>교통편</th><th>비고</th><th></th>
+                  <th>내용</th><th>교통편</th><th>비고</th>
+                  <!-- 지도 아이콘 컬럼 -->
+                  <th style="width:28px;text-align:center">🗺️</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody id="schedule-tbody"></tbody>
@@ -211,6 +223,7 @@
                   <td><input type="text" id="sch-add-content" placeholder="내용" /></td>
                   <td><input type="text" id="sch-add-trans" placeholder="교통편" /></td>
                   <td><input type="text" id="sch-add-notes" placeholder="비고" /></td>
+                  <td></td>
                   <td><button class="add-btn" onclick="saveScheduleRow()">＋ 추가</button></td>
                 </tr>
               </tfoot>
@@ -267,7 +280,7 @@
       <div class="section-header">
         <span class="section-title">⭐ 가고싶은 곳</span>
         <div style="display:flex;align-items:center;gap:8px">
-          <input type="text" id="trip-bucket-region" placeholder="지역 검색" style="width:120px;padding:4px 8px;font-size:0.78rem;border-radius:7px;border:1.5px solid var(--border)" oninput="renderTripBucket()" />
+          <input type="text" id="trip-bucket-region" placeholder="지역 검색" style="width:120px;padding:4px 8px;font-size:0.78rem;border-radius:7px;border:1.5px solid var(--border)" oninput="onTripBucketFilterChange()" />
           <button class="btn btn-primary btn-sm" onclick="openTripBucketModal()">＋ 추가</button>
         </div>
       </div>
@@ -293,18 +306,18 @@
 
     <div id="bucket-filter-row" class="bucket-filter-row hidden">
       <label>유형</label>
-      <select id="bf-type" onchange="renderBucketList()"><option value="">전체</option></select>
+      <select id="bf-type" onchange="saveBucketFilter();renderBucketList()"><option value="">전체</option></select>
       <label>나라</label>
-      <input type="text" id="bf-country" placeholder="나라" style="width:80px" oninput="renderBucketList()" />
+      <input type="text" id="bf-country" placeholder="나라" style="width:80px" oninput="saveBucketFilter();renderBucketList()" />
       <label>지역</label>
-      <input type="text" id="bf-region" placeholder="지역" style="width:80px" oninput="renderBucketList()" />
+      <input type="text" id="bf-region" placeholder="지역" style="width:80px" oninput="saveBucketFilter();renderBucketList()" />
       <label>계절</label>
-      <select id="bf-season" onchange="renderBucketList()">
+      <select id="bf-season" onchange="saveBucketFilter();renderBucketList()">
         <option value="">전체</option>
         <option>봄</option><option>여름</option><option>가을</option><option>겨울</option><option>연중</option>
       </select>
       <label style="display:flex;align-items:center;gap:4px">
-        <input type="checkbox" id="bf-unvisited" onchange="renderBucketList()" style="width:auto" /> 미방문만
+        <input type="checkbox" id="bf-unvisited" onchange="saveBucketFilter();renderBucketList()" style="width:auto" /> 미방문만
       </label>
       <button class="btn btn-ghost btn-sm" onclick="resetBucketFilter()">✕ 초기화</button>
     </div>
@@ -314,8 +327,12 @@
         <thead>
           <tr>
             <th style="width:26px">✓</th>
-            <th>유형</th><th>나라</th><th>지역</th>
-            <th>장소</th><th>계절</th><th>비고</th>
+            <th class="sortable" onclick="setBucketSort('category')">유형<span class="sort-icon"></span></th>
+            <th class="sortable" onclick="setBucketSort('country')">나라<span class="sort-icon"></span></th>
+            <th class="sortable" onclick="setBucketSort('region')">지역<span class="sort-icon"></span></th>
+            <th class="sortable" onclick="setBucketSort('placeName')">장소<span class="sort-icon"></span></th>
+            <th class="sortable" onclick="setBucketSort('season')">계절<span class="sort-icon"></span></th>
+            <th>비고</th>
             <th style="width:44px"></th>
           </tr>
         </thead>
@@ -456,6 +473,18 @@
       <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-bucket-trip')">취소</button>
       <button class="btn btn-primary btn-sm" onclick="saveTripBucketItem()">추가하기</button>
     </div>
+  </div>
+</div>
+
+<!-- Modal: 지도 보기 -->
+<div id="modal-map-view" class="modal-overlay hidden">
+  <div class="modal map-modal">
+    <div class="modal-header">
+      <h2 id="map-modal-title">🗺️ 지도</h2>
+      <button class="modal-close" onclick="closeModal('modal-map-view')">✕</button>
+    </div>
+    <a id="map-modal-link-anchor" href="#" target="_blank" rel="noreferrer" class="map-modal-link"></a>
+    <iframe id="map-modal-frame" src="" class="map-modal-frame" loading="lazy" allowfullscreen title="장소 지도"></iframe>
   </div>
 </div>
 
