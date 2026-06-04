@@ -121,7 +121,7 @@ function setTheme(t) {
   if (el) el.textContent = "현재 테마: " + (THEME_NAMES[t] || t);
   document.querySelectorAll(".theme-btn").forEach(b => b.classList.toggle("selected", b.dataset.theme === t));
 }
-function loadTheme() { setTheme(localStorage.getItem("theme") || "orange"); }
+function loadTheme() { setTheme(localStorage.getItem("theme") || "blue"); }
 loadTheme();
 
 // ============================================================
