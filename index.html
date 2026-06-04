@@ -134,6 +134,20 @@
         </div>
       </div>
       <div class="card-body res-card-body">
+        <!-- 예약 편집 배너 -->
+        <div id="res-edit-banner" class="edit-banner hidden">
+          <div class="edit-banner-left">
+            <label style="display:flex;align-items:center;gap:5px;font-size:0.78rem;cursor:pointer">
+              <input type="checkbox" id="res-select-all" onchange="toggleSelectAll('res',this)" style="width:15px;height:15px;accent-color:var(--pd)" />
+              전체선택
+            </label>
+            <span id="res-checked-count" class="check-count">0개 선택</span>
+          </div>
+          <div class="edit-banner-right">
+            <button class="btn btn-outline btn-sm" onclick="toggleResEditMode()">완료</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteChecked('res')">삭제</button>
+          </div>
+        </div>
         <div class="res-3col">
           <!-- 항공 -->
           <div class="res-col">
@@ -154,10 +168,6 @@
             <div id="res-list-기타"><div class="empty-msg" style="padding:12px 0;font-size:0.78rem">기타 예약 없음</div></div>
           </div>
         </div>
-        <div id="res-edit-banner" class="edit-banner hidden">
-          <span>✏️ 편집 모드 — 항목을 수정하거나 삭제하세요</span>
-          <button class="btn btn-primary btn-sm" onclick="toggleResEditMode()">완료</button>
-        </div>
       </div>
     </div>
 
@@ -174,9 +184,20 @@
         </div>
       </div>
       <div class="section-body">
+        <!-- 일정 편집 배너 -->
         <div id="edit-mode-banner" class="edit-banner hidden">
-          <span>✏️ 편집 모드 — 행을 직접 수정하거나 삭제하세요</span>
-          <button class="btn btn-primary btn-sm" onclick="toggleScheduleEditMode()">완료</button>
+          <div class="edit-banner-left">
+            <label style="display:flex;align-items:center;gap:5px;font-size:0.78rem;cursor:pointer">
+              <input type="checkbox" id="sch-select-all" onchange="toggleSelectAll('schedule',this)" style="width:15px;height:15px;accent-color:var(--pd)" />
+              전체선택
+            </label>
+            <span id="sch-checked-count" class="check-count">0개 선택</span>
+          </div>
+          <div class="edit-banner-right">
+            <button class="btn btn-primary btn-sm" onclick="saveChecked('schedule')">저장</button>
+            <button class="btn btn-outline btn-sm" onclick="toggleScheduleEditMode()">완료</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteChecked('schedule')">삭제</button>
+          </div>
         </div>
         <div id="schedule-table-view">
           <div class="table-wrap">
@@ -191,7 +212,7 @@
                   <th style="width:90px">교통편</th>
                   <th style="width:120px">비고</th>
                   <th style="width:28px;text-align:center">🗺️</th>
-                  <th id="sch-action-col" style="width:0;padding:0"></th>
+                  <th id="sch-action-col" style="width:0;padding:0;text-align:center"></th>
                 </tr>
               </thead>
               <tbody id="schedule-tbody"></tbody>
@@ -237,9 +258,20 @@
         </div>
       </div>
       <div class="section-body">
+        <!-- 지출 편집 배너 -->
         <div id="expense-edit-banner" class="edit-banner hidden">
-          <span>✏️ 편집 모드 — 행을 직접 수정하거나 삭제하세요</span>
-          <button class="btn btn-primary btn-sm" onclick="toggleExpenseEditMode()">완료</button>
+          <div class="edit-banner-left">
+            <label style="display:flex;align-items:center;gap:5px;font-size:0.78rem;cursor:pointer">
+              <input type="checkbox" id="exp-select-all" onchange="toggleSelectAll('expense',this)" style="width:15px;height:15px;accent-color:var(--pd)" />
+              전체선택
+            </label>
+            <span id="exp-checked-count" class="check-count">0개 선택</span>
+          </div>
+          <div class="edit-banner-right">
+            <button class="btn btn-primary btn-sm" onclick="saveChecked('expense')">저장</button>
+            <button class="btn btn-outline btn-sm" onclick="toggleExpenseEditMode()">완료</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteChecked('expense')">삭제</button>
+          </div>
         </div>
         <div class="table-wrap">
           <table class="data-table" id="expense-table">
@@ -250,7 +282,7 @@
                 <th style="min-width:140px">제목</th>
                 <th style="text-align:right;width:90px">원화</th>
                 <th style="text-align:right;width:80px" id="foreign-col-header">외화</th>
-                <th id="exp-action-col" style="width:0;padding:0"></th>
+                <th id="exp-action-col" style="width:0;padding:0;text-align:center"></th>
               </tr>
             </thead>
             <tbody id="expense-tbody"></tbody>
@@ -321,10 +353,20 @@
       <button class="region-tab" onclick="setBucketRegionTab('overseas',this)">🌍 해외</button>
     </div>
 
-    <!-- 편집모드 배너 -->
+    <!-- 버킷 편집모드 배너 -->
     <div id="bucket-edit-banner" class="edit-banner hidden" style="margin-bottom:10px">
-      <span>✏️ 편집 모드 — 항목을 수정하거나 삭제하세요</span>
-      <button class="btn btn-primary btn-sm" onclick="toggleBucketEditMode()">완료</button>
+      <div class="edit-banner-left">
+        <label style="display:flex;align-items:center;gap:5px;font-size:0.78rem;cursor:pointer">
+          <input type="checkbox" id="bkt-select-all" onchange="toggleSelectAll('bucket',this)" style="width:15px;height:15px;accent-color:var(--pd)" />
+          전체선택
+        </label>
+        <span id="bkt-checked-count" class="check-count">0개 선택</span>
+      </div>
+      <div class="edit-banner-right">
+        <button class="btn btn-primary btn-sm" onclick="saveChecked('bucket')">저장</button>
+        <button class="btn btn-outline btn-sm" onclick="toggleBucketEditMode()">완료</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteChecked('bucket')">삭제</button>
+      </div>
     </div>
 
     <div class="bucket-list-wrap">
@@ -338,7 +380,7 @@
             <th class="col-sortable" data-col="placeName">장소<button class="col-menu-btn" onclick="toggleColMenu('placeName',this)">⋮</button><div class="col-dropdown" id="col-dd-placeName"></div></th>
             <th class="col-sortable" data-col="season">계절<button class="col-menu-btn" onclick="toggleColMenu('season',this)">⋮</button><div class="col-dropdown" id="col-dd-season"></div></th>
             <th>비고</th>
-            <th id="bucket-action-col" style="width:0;padding:0"></th>
+            <th id="bucket-action-col" style="width:0;padding:0;text-align:center"></th>
           </tr>
         </thead>
         <tbody id="bucket-list-tbody"></tbody>
@@ -364,8 +406,8 @@
       <h3>🎨 테마 색상</h3>
       <div class="theme-options">
         <button class="theme-btn" data-theme="orange" onclick="setTheme('orange')"><div class="theme-swatch" style="background:#FDBA74"></div><span>주황</span></button>
-        <button class="theme-btn" data-theme="blue" onclick="setTheme('blue')"><div class="theme-swatch" style="background:#93C5FD"></div><span>파랑</span></button>
-        <button class="theme-btn" data-theme="pink" onclick="setTheme('pink')"><div class="theme-swatch" style="background:#F9A8D4"></div><span>분홍</span></button>
+        <button class="theme-btn" data-theme="blue" onclick="setTheme('blue')"><div class="theme-swatch" style="background:#3B82F6"></div><span>파랑</span></button>
+        <button class="theme-btn" data-theme="pink" onclick="setTheme('pink')"><div class="theme-swatch" style="background:#EC4899"></div><span>분홍</span></button>
         <button class="theme-btn" data-theme="green" onclick="setTheme('green')"><div class="theme-swatch" style="background:#86EFAC"></div><span>연두</span></button>
         <button class="theme-btn" data-theme="purple" onclick="setTheme('purple')"><div class="theme-swatch" style="background:#C4B5FD"></div><span>보라</span></button>
         <button class="theme-btn" data-theme="mint" onclick="setTheme('mint')"><div class="theme-swatch" style="background:#5EEAD4"></div><span>민트</span></button>
@@ -535,13 +577,16 @@
 
 <!-- Modal: 지도 링크 입력 (여행지 우측) -->
 <div id="modal-map-entry" class="modal-overlay hidden">
-  <div class="modal" style="max-width:460px">
+  <div class="modal" style="max-width:500px">
     <div class="modal-header">
       <h2>🗺️ 지도 연결</h2>
       <button class="modal-close" onclick="closeModal('modal-map-entry')">✕</button>
     </div>
-    <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:14px">구글 지도 링크를 붙여넣으세요. 지도 아이콘 클릭 시 해당 지도가 모달로 열립니다.</p>
-    <input type="url" id="map-entry-input" placeholder="https://maps.google.com/..." style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:9px;font-size:0.84rem;margin-bottom:10px" />
+    <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:10px">
+      구글 지도 링크 또는 HTML 임베드 코드를 붙여넣으세요.<br>
+      <span style="font-size:0.74rem">(지도 공유 → "지도 퍼가기" 에서 복사한 &lt;iframe&gt; 코드도 가능)</span>
+    </p>
+    <textarea id="map-entry-input" placeholder="https://maps.google.com/...&#10;또는&#10;&lt;iframe src=&quot;...&quot;&gt;&lt;/iframe&gt;" rows="4"></textarea>
     <div id="map-entry-preview-row" class="hidden" style="margin-bottom:10px">
       <a id="map-entry-preview-link" href="#" target="_blank" rel="noreferrer" style="font-size:0.76rem;color:var(--pd);word-break:break-all"></a>
     </div>
