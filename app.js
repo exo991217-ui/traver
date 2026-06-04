@@ -476,19 +476,10 @@ function openMapModal(notesUrl, locationName) {
 }
 
 // 일반 링크 미리보기 모달
+// Google Maps 등은 iframe 임베드를 거부하므로 새 탭으로 직접 오픈
 function openLinkModal(encodedUrl) {
   const url = decodeURIComponent(encodedUrl);
-  const urlEl = document.getElementById("link-preview-url");
-  const anchor = document.getElementById("link-preview-anchor");
-  const frame = document.getElementById("link-preview-frame");
-  if (urlEl) urlEl.textContent = url;
-  if (anchor) { anchor.href = url; }
-  if (frame) {
-    // 지도 링크는 embed로, 나머지는 직접 시도
-    const embedUrl = buildMapEmbedUrl(url);
-    frame.src = embedUrl !== url ? embedUrl : url;
-  }
-  openModal("modal-link-preview");
+  window.open(url, "_blank", "noreferrer");
 }
 
 // ============================================================
@@ -823,42 +814,51 @@ function renderExpenses(items) {
     tbody.innerHTML = `<tr><td colspan="6" class="empty-msg">💸 아래 "추가" 버튼에서 지출을 추가하세요</td></tr>`;
     return;
   }
-  tbody.innerHTML = items.map(e => {
-    if (expenseEditId === e.id) return renderExpenseEditRow(e);
-    return `<tr>
+  if (expenseEditMode) {
+    // 편집 모드: 모든 행 즉시 입력창으로 표시 (일정과 동일 방식)
+    const cats = getCategories("expense");
+    tbody.innerHTML = items.map(e => renderExpenseEditModeRow(e, sym, cats)).join("");
+  } else {
+    tbody.innerHTML = items.map(e => `<tr>
       <td>${e.category ? `<span class="badge badge-${escHtml(e.category)}">${escHtml(e.category)}</span>` : "-"}</td>
       <td style="white-space:nowrap;font-size:0.78rem">${formatDateShort(e.date)}</td>
       <td style="word-break:break-word">${escHtml(e.title)}</td>
       <td style="text-align:right;font-weight:700">${e.amountKrw!=null ? e.amountKrw.toLocaleString()+"원" : "-"}</td>
       <td style="text-align:right;color:var(--text-muted)">${e.amountForeign!=null && sym ? sym+e.amountForeign.toLocaleString() : "-"}</td>
-      <td style="white-space:nowrap;width:${expenseEditMode?"80px":"0"};padding:${expenseEditMode?"8px 9px":"0"};overflow:hidden">
-        ${expenseEditMode ? `
-          <button class="btn btn-ghost btn-icon" style="font-size:0.75rem" onclick="startEditExpense('${e.id}')">✏️</button>
-          <button class="btn btn-ghost btn-icon" style="font-size:0.75rem" onclick="deleteExpense('${e.id}')">🗑️</button>
-        ` : ""}
-      </td>
-    </tr>`;
-  }).join("");
+      <td style="width:0;padding:0"></td>
+    </tr>`).join("");
+  }
 }
 
-function renderExpenseEditRow(e) {
-  const sym = CURRENCY_SYMBOLS[currentTrip?.foreignCurrency] || "";
-  const cats = getCategories("expense");
-  return `<tr class="edit-row">
-    <td><select id="eec-cat"><option value="">선택</option>${cats.map(c=>`<option${c===e.category?" selected":""}>${c}</option>`).join("")}</select></td>
-    <td><input type="date" id="eec-date" value="${e.date||""}" /></td>
-    <td><input type="text" id="eec-title" value="${escHtml(e.title)}" /></td>
-    <td><input type="number" id="eec-krw" value="${e.amountKrw??""}" style="text-align:right" /></td>
-    <td><input type="number" id="eec-foreign" value="${e.amountForeign??""}" style="text-align:right" ${!sym?"disabled":""} /></td>
+// 편집 모드 행 — 일정과 동일하게 즉시 모든 셀이 입력창
+function renderExpenseEditModeRow(e, sym, cats) {
+  const catOptions = cats.map(c => `<option${c===e.category?" selected":""}>${c}</option>`).join("");
+  return `<tr class="em-row" data-id="${e.id}">
+    <td><select id="em-exp-cat-${e.id}"><option value="">선택</option>${catOptions}</select></td>
+    <td><input type="date" id="em-exp-date-${e.id}" value="${e.date||""}" style="min-width:100px" /></td>
+    <td><input type="text" id="em-exp-title-${e.id}" value="${escHtml(e.title)}" placeholder="제목" /></td>
+    <td><input type="number" id="em-exp-krw-${e.id}" value="${e.amountKrw??""}" style="text-align:right" placeholder="원화" /></td>
+    <td><input type="number" id="em-exp-foreign-${e.id}" value="${e.amountForeign??""}" style="text-align:right" placeholder="외화" ${!sym?"disabled":""} /></td>
     <td style="white-space:nowrap">
-      <button class="add-btn" onclick="updateExpense('${e.id}')">저장</button>
-      <button class="cancel-btn" onclick="cancelEditExpense()">취소</button>
+      <button class="add-btn" style="font-size:0.72rem;padding:3px 8px" onclick="saveExpenseEditModeRow('${e.id}')">저장</button>
+      <button class="em-del-btn" onclick="deleteExpense('${e.id}')" title="삭제">🗑</button>
     </td>
   </tr>`;
 }
 
-function startEditExpense(id) { expenseEditId = id; loadExpenses(); }
-function cancelEditExpense() { expenseEditId = null; loadExpenses(); }
+async function saveExpenseEditModeRow(id) {
+  const title = document.getElementById("em-exp-title-" + id)?.value.trim();
+  if (!title) { showToast("제목을 입력해주세요"); return; }
+  await expensesRef().doc(id).update({
+    category: document.getElementById("em-exp-cat-" + id)?.value || null,
+    date: document.getElementById("em-exp-date-" + id)?.value || null,
+    title,
+    amountKrw: document.getElementById("em-exp-krw-" + id)?.value ? parseInt(document.getElementById("em-exp-krw-" + id).value) : null,
+    amountForeign: document.getElementById("em-exp-foreign-" + id)?.value ? parseFloat(document.getElementById("em-exp-foreign-" + id).value) : null,
+  });
+  showToast("저장 완료 ✅");
+  loadExpenses();
+}
 
 async function saveExpenseRow() {
   const title = document.getElementById("exp-add-title").value.trim();
