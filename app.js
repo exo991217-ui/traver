@@ -702,7 +702,11 @@ function autoCalcKrw() {
 
 async function loadSchedules() {
   const snap = await schedulesRef().orderBy("date").get().catch(() => ({ docs: [] }));
-  let items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  let items = snap.docs.map(d => {
+    const data = d.data();
+    if (data.mapUrl) data.mapUrl = parseMapInput(data.mapUrl) || data.mapUrl;
+    return { id: d.id, ...data };
+  });
   items.sort((a,b) => {
     const dd = (a.date||"").localeCompare(b.date||"");
     return dd !== 0 ? dd : (a.time||"").localeCompare(b.time||"");
