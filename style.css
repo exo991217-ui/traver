@@ -555,7 +555,7 @@ input[type="date"]::-webkit-inner-spin-button { display:none; }
 /* ---- Map Modal ---- */
 .map-modal { max-width:580px; }
 .map-modal-frame { width:100%; height:380px; border:none; border-radius:10px; display:block; margin-top:10px; border:1px solid var(--border); }
-.map-modal-link { font-size:0.75rem; color:var(--pd,#F97316); word-break:break-all; margin-top:6px; display:block; }
+.map-modal-link { font-size:0.75rem; color:var(--pd,#F97316); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:100%; margin-top:6px; display:block; }
 
 /* Map entry modal textarea */
 #map-entry-input {
