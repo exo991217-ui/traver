@@ -1732,10 +1732,15 @@ function renderBucketList() {
   }
 
   const bktRow = (i, withCheck) => {
-    const checkCell = `<td><input type="checkbox" class="row-check bkt-row-check" data-id="${i.id}" onclick="event.stopPropagation()" onchange="onRowCheckChange('bucket')" style="${withCheck?'':'display:none'}" /></td>`;
+    let visitCell;
+    if (withCheck) {
+      visitCell = `<td><input type="checkbox" class="row-check bkt-row-check" data-id="${i.id}" onclick="event.stopPropagation()" onchange="onRowCheckChange('bucket')" /></td>`;
+    } else {
+      visitCell = `<td style="text-align:center"><input type="checkbox" ${i.visited?"checked":""} onclick="event.stopPropagation();toggleVisited('${i.id}',${i.visited})" style="width:16px;height:16px;accent-color:var(--pd);cursor:pointer;display:block;margin:0 auto" title="방문 완료 체크" /></td>`;
+    }
     const clickable = withCheck ? "" : `class="clickable-row ${i.visited?"done-row":""}" onclick="if(!isLocked)openBucketAddModal('${i.id}')"`;
     return `<tr ${clickable} ${!withCheck ? "" : `class="${i.visited?"done-row":""}"`}>
-      ${checkCell}`;
+      ${visitCell}`;
   };
 
   tbody.innerHTML = items.map(i => {
