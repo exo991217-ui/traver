@@ -669,19 +669,18 @@ input[type="date"]::-webkit-inner-spin-button { display: none; }
 /* ---- Hover-to-edit row animation ---- */
 .clickable-row {
   cursor: pointer;
-  transition: background .13s ease, box-shadow .13s ease, transform .13s ease;
+  transition: background .13s ease, box-shadow .13s ease;
   position: relative;
 }
 .clickable-row:hover {
   background: var(--pl, #eef2ff) !important;
   box-shadow: inset 3px 0 0 var(--pd, #4f46e5);
-  transform: translateX(1px);
 }
 .data-table .clickable-row:hover td { background: transparent; }
 
 /* locked state — disable hover & pointer */
 body.page-locked .clickable-row { cursor: default !important; }
-body.page-locked .clickable-row:hover { background: inherit !important; box-shadow: none !important; transform: none !important; }
+body.page-locked .clickable-row:hover { background: inherit !important; box-shadow: none !important; }
 body.page-locked .wish-item { cursor: default !important; }
 body.page-locked .wish-item:hover { border-color: var(--border-soft) !important; box-shadow: none !important; }
 body.page-locked .res-item { cursor: default !important; }
