@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>여행 일정 공유</title>
+  <style>
+    :root {
+      --p:#818cf8; --pd:#4f46e5; --pb:#e0e7ff; --pl:#eef2ff;
+      --text:#1e1b4b; --text-muted:#6b7280; --text-light:#9ca3af;
+      --surface:#fff; --surface2:#f8f8fc; --border:#e5e7eb; --border-soft:#f0f0f8;
+      --radius:14px; --radius-sm:10px; --radius-xs:8px;
+      --shadow-sm:0 1px 3px rgba(0,0,0,.06);
+      --shadow:0 4px 16px rgba(0,0,0,.09);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--surface2); color: var(--text); min-height: 100vh; }
+
+    header {
+      background: var(--surface);
+      border-bottom: 1.5px solid var(--border-soft);
+      padding: 0 28px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .header-title { font-size: 1rem; font-weight: 800; color: var(--pd); }
+    .header-badge {
+      font-size: .72rem;
+      font-weight: 700;
+      background: var(--pb);
+      color: var(--pd);
+      border-radius: 999px;
+      padding: 3px 11px;
+    }
+
+    main { max-width: 860px; margin: 0 auto; padding: 32px 20px 60px; }
+
+    .trip-hero {
+      background: linear-gradient(135deg, var(--pd) 0%, var(--p) 100%);
+      color: #fff;
+      border-radius: var(--radius);
+      padding: 30px 28px;
+      margin-bottom: 28px;
+      box-shadow: var(--shadow);
+    }
+    .trip-hero h1 { font-size: 1.6rem; font-weight: 900; margin-bottom: 10px; }
+    .trip-meta { display: flex; flex-wrap: wrap; gap: 10px; font-size: .85rem; opacity: .88; }
+    .trip-meta span { display: flex; align-items: center; gap: 4px; }
+
+    .section {
+      background: var(--surface);
+      border: 1.5px solid var(--border-soft);
+      border-radius: var(--radius);
+      margin-bottom: 20px;
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+    }
+    .section-head {
+      padding: 14px 20px;
+      background: var(--surface2);
+      border-bottom: 1.5px solid var(--border-soft);
+      font-size: .92rem;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+    .section-body { padding: 0; }
+
+    table { width: 100%; border-collapse: collapse; font-size: .84rem; }
+    th {
+      background: var(--surface2);
+      padding: 8px 12px;
+      text-align: left;
+      font-weight: 700;
+      font-size: .78rem;
+      color: var(--text-muted);
+      border-bottom: 1.5px solid var(--border-soft);
+      white-space: nowrap;
+    }
+    td { padding: 9px 12px; border-bottom: 1px solid var(--border-soft); vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--pl); }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: .72rem;
+      font-weight: 700;
+      background: var(--pb);
+      color: var(--pd);
+    }
+
+    .empty-msg { text-align: center; padding: 28px; color: var(--text-muted); font-size: .84rem; }
+
+    .res-grid { display: grid; grid-template-columns: 1fr; gap: 10px; padding: 16px 20px; }
+    .res-item {
+      background: var(--surface2);
+      border: 1.5px solid var(--border-soft);
+      border-radius: var(--radius-sm);
+      padding: 14px 16px;
+    }
+    .res-item h4 { font-size: .9rem; font-weight: 700; margin-bottom: 5px; }
+    .res-item p { font-size: .8rem; color: var(--text-muted); }
+
+    .budget-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      font-size: .9rem;
+    }
+    .budget-label { color: var(--text-muted); }
+    .budget-val { font-size: 1.15rem; font-weight: 800; color: var(--pd); }
+
+    #loading {
+      text-align: center;
+      padding: 80px 20px;
+      color: var(--text-muted);
+    }
+    .spinner {
+      border: 3px solid var(--border);
+      border-top-color: var(--pd);
+      border-radius: 50%;
+      width: 36px;
+      height: 36px;
+      animation: spin .8s linear infinite;
+      margin: 0 auto 18px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    #error { display: none; text-align: center; padding: 80px 20px; }
+    #error h2 { font-size: 1.1rem; font-weight: 800; margin-bottom: 8px; }
+    #error p { color: var(--text-muted); font-size: .88rem; }
+
+    .shared-at {
+      text-align: center;
+      padding: 20px;
+      font-size: .75rem;
+      color: var(--text-light);
+    }
+
+    @media (max-width: 600px) {
+      main { padding: 20px 14px 48px; }
+      .trip-hero { padding: 22px 18px; }
+      .trip-hero h1 { font-size: 1.3rem; }
+      th, td { padding: 7px 10px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <span class="header-title">✈️ 여행을 떠나자</span>
+  <span class="header-badge">읽기 전용 공유</span>
+</header>
+
+<main>
+  <div id="loading">
+    <div class="spinner"></div>
+    <p>일정을 불러오는 중...</p>
+  </div>
+  <div id="error">
+    <h2>🔗 공유 링크를 찾을 수 없어요</h2>
+    <p>링크가 만료됐거나 공유가 중단된 것 같아요.<br>링크를 다시 확인해 주세요.</p>
+  </div>
+  <div id="content" style="display:none"></div>
+</main>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyAbADaBZeXIdjJWncwoMgUh9F9zmeangLk",
+  authDomain: "traver-26688.firebaseapp.com",
+  projectId: "traver-26688",
+  storageBucket: "traver-26688.firebasestorage.app",
+  messagingSenderId: "53169364548",
+  appId: "1:53169364548:web:00a9a87425c6643ea0e611",
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+function esc(s) {
+  return String(s || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+function fmtDate(d) {
+  if (!d) return "-";
+  return d.replace("T", " ").substring(0, 16);
+}
+function fmtDateShort(d) {
+  if (!d) return "-";
+  const m = d.match(/\d{4}-(\d{2})-(\d{2})/);
+  return m ? m[1] + "/" + m[2] : d;
+}
+
+const CATEGORY_COLORS = {
+  "관광": "#dbeafe", "맛집": "#fce7f3", "카페": "#fef9c3", "쇼핑": "#d1fae5",
+  "교통": "#e0e7ff", "숙소": "#ffe4e6", "액티비티": "#ffedd5", "기타": "#f3f4f6",
+};
+const CATEGORY_TEXT = {
+  "관광": "#1e40af", "맛집": "#9d174d", "카페": "#92400e", "쇼핑": "#065f46",
+  "교통": "#3730a3", "숙소": "#9f1239", "액티비티": "#9a3412", "기타": "#374151",
+};
+
+function badge(cat) {
+  if (!cat) return "";
+  const bg = CATEGORY_COLORS[cat] || "#f3f4f6";
+  const color = CATEGORY_TEXT[cat] || "#374151";
+  return `<span style="display:inline-block;padding:2px 8px;border-radius:999px;font-size:.72rem;font-weight:700;background:${bg};color:${color}">${esc(cat)}</span>`;
+}
+
+async function loadShared() {
+  const token = new URLSearchParams(location.search).get("token");
+  if (!token) { showError(); return; }
+
+  try {
+    const doc = await db.collection("sharedTrips").doc(token).get();
+    if (!doc.exists) { showError(); return; }
+    const data = doc.data();
+    document.title = (data.title || "여행 일정") + " — 공유";
+    render(data);
+  } catch (e) {
+    console.error(e);
+    showError();
+  }
+}
+
+function showError() {
+  document.getElementById("loading").style.display = "none";
+  document.getElementById("error").style.display = "";
+}
+
+function render(data) {
+  document.getElementById("loading").style.display = "none";
+  const el = document.getElementById("content");
+  el.style.display = "";
+
+  const dateRange = [data.startDate, data.endDate].filter(Boolean).join(" ~ ");
+  const location = [data.city, data.country].filter(Boolean).join(", ");
+  const companions = data.companions;
+  const sharedAt = data.sharedAt ? new Date(data.sharedAt).toLocaleString("ko-KR") : "";
+
+  const schedules = data.schedules || [];
+  const expenses = data.expenses || [];
+  const reservations = data.reservations || [];
+
+  const total = expenses.reduce((s, e) => s + (e.amountKrw || 0), 0);
+
+  const currSym = { USD: "$", JPY: "¥", EUR: "€", CNY: "¥", THB: "฿", VND: "₫" }[data.foreignCurrency] || "";
+
+  el.innerHTML = `
+    <div class="trip-hero">
+      <h1>${esc(data.title) || "여행 일정"}</h1>
+      <div class="trip-meta">
+        ${dateRange ? `<span>📅 ${esc(dateRange)}</span>` : ""}
+        ${location ? `<span>📍 ${esc(location)}</span>` : ""}
+        ${companions ? `<span>👥 ${esc(companions)}</span>` : ""}
+      </div>
+    </div>
+
+    <!-- 여행 일정 -->
+    <div class="section">
+      <div class="section-head">📅 여행 일정 <span style="font-size:.78rem;font-weight:400;color:var(--text-muted)">(${schedules.length}건)</span></div>
+      <div class="section-body">
+        ${schedules.length ? `
+        <table>
+          <thead>
+            <tr>
+              <th>분류</th><th>날짜</th><th>시간</th><th>장소</th><th>내용</th><th>교통편</th><th>비고</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${schedules.map(s => `
+            <tr>
+              <td>${badge(s.category)}</td>
+              <td style="white-space:nowrap;font-size:.8rem">${fmtDateShort(s.date)}</td>
+              <td style="white-space:nowrap;font-size:.8rem">${esc(s.time) || "-"}</td>
+              <td style="font-weight:600">${esc(s.place) || "-"}</td>
+              <td>${esc(s.content) || "-"}</td>
+              <td style="font-size:.8rem;color:var(--text-muted)">${esc(s.transport) || "-"}</td>
+              <td style="font-size:.8rem;color:var(--text-muted)">${esc(s.notes) || "-"}</td>
+            </tr>`).join("")}
+          </tbody>
+        </table>` : '<div class="empty-msg">일정이 없어요</div>'}
+      </div>
+    </div>
+
+    <!-- 지출 내역 -->
+    <div class="section">
+      <div class="section-head">
+        💰 지출 내역
+        <span style="font-size:.78rem;font-weight:400;color:var(--text-muted)">(${expenses.length}건)</span>
+        ${total > 0 ? `<span style="margin-left:auto;font-size:.9rem;font-weight:800;color:var(--pd)">${total.toLocaleString()}원</span>` : ""}
+      </div>
+      <div class="section-body">
+        ${expenses.length ? `
+        <table>
+          <thead>
+            <tr><th>분류</th><th>날짜</th><th>내용</th><th style="text-align:right">원화</th>${currSym ? `<th style="text-align:right">외화</th>` : ""}</tr>
+          </thead>
+          <tbody>
+            ${expenses.map(e => `
+            <tr>
+              <td>${badge(e.category)}</td>
+              <td style="white-space:nowrap;font-size:.8rem">${fmtDateShort(e.date)}</td>
+              <td>${esc(e.title)}</td>
+              <td style="text-align:right;font-weight:600">${e.amountKrw != null ? Number(e.amountKrw).toLocaleString() + "원" : "-"}</td>
+              ${currSym ? `<td style="text-align:right;color:var(--text-muted)">${e.amountForeign != null ? currSym + Number(e.amountForeign).toLocaleString() : "-"}</td>` : ""}
+            </tr>`).join("")}
+          </tbody>
+        </table>` : '<div class="empty-msg">지출 내역이 없어요</div>'}
+      </div>
+    </div>
+
+    <!-- 예약 정보 -->
+    ${reservations.length ? `
+    <div class="section">
+      <div class="section-head">🎫 예약 정보 <span style="font-size:.78rem;font-weight:400;color:var(--text-muted)">(${reservations.length}건)</span></div>
+      <div class="res-grid">
+        ${reservations.map(r => `
+        <div class="res-item">
+          <h4>${r.type === "항공" ? "✈️" : r.type === "숙소" ? "🏨" : "🎟️"} ${esc(r.title) || r.type}</h4>
+          <p>${[
+            r.type === "항공" ? [fmtDate(r.depart), fmtDate(r.arrive), r.flight, r.reservationNumber].filter(Boolean).join(" · ") : "",
+            r.type === "숙소" ? [fmtDate(r.checkin), fmtDate(r.checkout), r.phone, r.reservationNumber].filter(Boolean).join(" · ") : "",
+            r.type === "기타" ? [r.date, r.subCategory, r.reservationNumber].filter(Boolean).join(" · ") : "",
+            r.notes ? r.notes : "",
+          ].filter(Boolean).join("<br>")}</p>
+        </div>`).join("")}
+      </div>
+    </div>` : ""}
+
+    ${sharedAt ? `<div class="shared-at">🔗 ${sharedAt} 기준 스냅샷 — 이후 변경사항은 반영되지 않을 수 있어요</div>` : ""}
+  `;
+}
+
+loadShared();
+</script>
+</body>
+</html>
