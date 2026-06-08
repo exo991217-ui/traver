@@ -1353,22 +1353,16 @@ async function loadReservations() {
       return;
     }
     list.innerHTML = ti.map(r => {
-      if (resEditMode && r.id === resEditItemId) {
+      if (r.id === resEditItemId) {
         return `<div class="res-item res-edit-form-wrap">${buildResEditFormHtml(type, r)}</div>`;
       }
       const textNotes = r.notes ? `<p>${escHtml(r.notes)}</p>` : "";
       const linkBtn = r.link ? `<button class="res-link-btn" onclick="openResLinkModal('${encodeURIComponent(r.link)}')" title="링크 보기">${ICON_LINK}</button>` : "";
-      const chkHtml = resEditMode
-        ? `<input type="checkbox" class="res-item-check res-row-check" data-id="${r.id}" onchange="onRowCheckChange('res')" />`
-        : "";
-      const clickHandler = !resEditMode ? `onclick="if(!isLocked)editReservation('${r.id}','${type}')" style="cursor:pointer"` : "";
-      const actions = resEditMode ? `
-        <div class="res-actions">
-          <span style="font-size:0.72rem;color:var(--text-muted)">체크 후 삭제</span>
-        </div>` : "";
+      const hoverTrash = `<button class="res-hover-trash" onclick="event.stopPropagation();deleteReservation('${r.id}')" title="삭제">${ICON_TRASH}</button>`;
+      const clickHandler = `onclick="if(!isLocked)editReservation('${r.id}','${type}')" style="cursor:pointer"`;
       return `<div class="res-item" ${clickHandler}>
         ${linkBtn}
-        ${chkHtml}
+        ${hoverTrash}
         <div class="res-info">
           <h4>${escHtml(r.title) || "-"}</h4>
           ${type==="항공" ? `<p>${[r.depart?.replace("T"," "), r.arrive?.replace("T"," "), r.flight, r.reservationNumber].filter(Boolean).join(" · ")}</p>` : ""}
@@ -1376,7 +1370,6 @@ async function loadReservations() {
           ${type==="기타" ? `<p>${[r.date, r.subCategory, r.reservationNumber].filter(Boolean).join(" · ")}</p>` : ""}
           ${textNotes}
         </div>
-        ${actions}
       </div>`;
     }).join("");
   });
@@ -1384,6 +1377,7 @@ async function loadReservations() {
 }
 
 function editReservation(id, type) {
+  if (resEditItemId === id) { resEditItemId = null; loadReservations(); return; }
   resEditItemId = id;
   ["항공","숙소","기타"].forEach(t => document.getElementById("res-form-" + t)?.classList.add("hidden"));
   loadReservations();
@@ -1493,6 +1487,7 @@ function renderTripBucket(items) {
             <span class="wish-item-name ${item.visited?"done":""}">${escHtml(item.placeName)}</span>
             <span class="wish-item-badges">${regionBadge}</span>
             <div class="wish-item-actions">
+              <button class="btn btn-ghost btn-icon" style="width:22px;height:22px;padding:0;color:var(--pd)" onclick="event.stopPropagation();openTripBucketModal('${item.id}')" title="수정">${ICON_EDIT}</button>
               <button class="btn btn-ghost btn-icon" style="width:22px;height:22px;padding:0;color:var(--text-muted)" onclick="event.stopPropagation();deleteBucketItem('${item.id}')" title="삭제">${ICON_TRASH}</button>
             </div>
           </div>`;
@@ -1752,7 +1747,9 @@ function renderBucketList() {
        <td style="font-weight:600">${escHtml(i.placeName)}</td>
        <td>${escHtml(i.season)||"-"}</td>
        <td style="color:var(--text-muted)">${escHtml(i.notes)||"-"}</td>
-       <td style="width:0;padding:0"></td>
+       <td class="bkt-row-action" style="width:32px;padding:4px;text-align:center">
+         <button class="bkt-del-btn" onclick="event.stopPropagation();deleteBucketItem('${i.id}')" title="삭제">${ICON_TRASH}</button>
+       </td>
       </tr>`;
   }).join("");
 
