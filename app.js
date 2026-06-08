@@ -709,33 +709,67 @@ function editRate() {
 // 지도 링크
 // ============================================================
 function openMapEntryModal() {
-  const inp = document.getElementById("map-entry-input");
-  if (inp) inp.value = currentTrip?.mapLink || "";
-  updateMapEntryPreview();
+  _refreshMapEntryDisplay();
   openModal("modal-map-entry");
-  setTimeout(() => inp && inp.focus(), 80);
+}
+
+function _refreshMapEntryDisplay() {
+  const saved = currentTrip?.mapLink || "";
+  const parsed = parseMapInput(saved) || saved;
+  const iframeWrap = document.getElementById("map-entry-iframe-wrap");
+  const iframe     = document.getElementById("map-entry-iframe");
+  const urlView    = document.getElementById("map-entry-url-view");
+  const urlEdit    = document.getElementById("map-entry-url-edit");
+  const emptyEl    = document.getElementById("map-entry-empty");
+  const linkEl     = document.getElementById("map-entry-preview-link");
+  const inp        = document.getElementById("map-entry-input");
+
+  if (urlEdit)  urlEdit.classList.add("hidden");
+  if (inp)      inp.value = saved;
+
+  if (saved) {
+    emptyEl?.classList.add("hidden");
+    urlView?.classList.remove("hidden");
+    if (linkEl) { linkEl.href = parsed; linkEl.textContent = parsed; }
+    const embedUrl = buildMapEmbedUrl(parsed);
+    if (embedUrl && iframeWrap && iframe) {
+      iframe.src = embedUrl;
+      iframeWrap.classList.remove("hidden");
+    } else {
+      iframeWrap?.classList.add("hidden");
+    }
+  } else {
+    urlView?.classList.add("hidden");
+    emptyEl?.classList.remove("hidden");
+    iframeWrap?.classList.add("hidden");
+    if (iframe) iframe.src = "";
+  }
+}
+
+function startMapLinkEdit() {
+  document.getElementById("map-entry-url-view")?.classList.add("hidden");
+  document.getElementById("map-entry-empty")?.classList.add("hidden");
+  const editEl = document.getElementById("map-entry-url-edit");
+  if (editEl) editEl.classList.remove("hidden");
+  const inp = document.getElementById("map-entry-input");
+  if (inp) { inp.value = currentTrip?.mapLink || ""; inp.focus(); }
+}
+
+function cancelMapLinkEdit() {
+  _refreshMapEntryDisplay();
 }
 
 function updateMapEntryPreview() {
   const raw = document.getElementById("map-entry-input")?.value.trim() || "";
   const parsed = parseMapInput(raw);
-  const row = document.getElementById("map-entry-preview-row");
-  const link = document.getElementById("map-entry-preview-link");
   const iframeWrap = document.getElementById("map-entry-iframe-wrap");
-  const iframe = document.getElementById("map-entry-iframe");
-  if (parsed) {
-    if (row) { row.classList.remove("hidden"); }
-    if (link) { link.href = parsed; link.textContent = parsed; }
+  const iframe     = document.getElementById("map-entry-iframe");
+  if (parsed && iframeWrap && iframe) {
     const embedUrl = buildMapEmbedUrl(parsed);
-    if (embedUrl && iframe && iframeWrap) {
-      iframe.src = embedUrl;
-      iframeWrap.classList.remove("hidden");
-    } else if (iframeWrap) {
-      iframeWrap.classList.add("hidden");
-    }
-  } else {
-    if (row) row.classList.add("hidden");
-    if (iframeWrap) iframeWrap.classList.add("hidden");
+    if (embedUrl) { iframe.src = embedUrl; iframeWrap.classList.remove("hidden"); }
+    else iframeWrap.classList.add("hidden");
+  } else if (iframeWrap) {
+    iframeWrap.classList.add("hidden");
     if (iframe) iframe.src = "";
   }
 }
@@ -750,8 +784,12 @@ function parseMapInput(raw) {
 }
 
 async function saveTripMapLink() {
-  const raw = document.getElementById("map-entry-input").value.trim();
-  const parsed = parseMapInput(raw) || (raw || null);
+  const editEl  = document.getElementById("map-entry-url-edit");
+  const editing = editEl && !editEl.classList.contains("hidden");
+  const raw     = editing
+    ? (document.getElementById("map-entry-input")?.value.trim() || "")
+    : (currentTrip?.mapLink || "");
+  const parsed  = parseMapInput(raw) || (raw || null);
   currentTrip.mapLink = parsed || null;
   await tripsRef().doc(currentTripId).update({ mapLink: parsed || null });
   closeModal("modal-map-entry");
@@ -2135,4 +2173,3 @@ async function exportTripSummary() {
     showToast("이미지 저장 실패");
   }
 }
-
