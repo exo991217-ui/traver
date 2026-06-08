@@ -100,12 +100,76 @@
     </div>
 
     <div class="chip-bar">
+      <button class="chip chip-special" onclick="showPackingTips(this)">📦 준비물과 팁</button>
       <button class="chip active" onclick="filterTrips('all',this)">전체</button>
       <button class="chip" onclick="filterTrips('overseas',this)">해외여행 🌍</button>
       <button class="chip" onclick="filterTrips('domestic',this)">국내여행 🏔️</button>
     </div>
 
     <div id="trips-container"></div>
+
+    <!-- ====== 준비물과 팁 패널 ====== -->
+    <div id="packing-tips-panel" class="hidden">
+
+      <!-- 서브탭 -->
+      <div class="pt-subtab-bar">
+        <button class="pt-subtab active" onclick="showPTSubtab('packing',this)">🧳 준비물</button>
+        <button class="pt-subtab" onclick="showPTSubtab('tips',this)">💡 유용한 팁</button>
+      </div>
+
+      <!-- 준비물 섹션 -->
+      <div id="pt-packing" class="pt-section">
+        <div class="packing-grid">
+          <div class="packing-col">
+            <div class="packing-col-header">
+              <span>🧳 공통 준비물</span>
+              <span class="packing-progress" id="packing-progress-common">0 / 0</span>
+            </div>
+            <div id="packing-list-common" class="packing-list"></div>
+            <button class="packing-add-btn" onclick="addPackingItem('common')">＋ 항목 추가</button>
+          </div>
+          <div class="packing-col">
+            <div class="packing-col-header">
+              <span>✈️ 해외 준비물</span>
+              <span class="packing-progress" id="packing-progress-overseas">0 / 0</span>
+            </div>
+            <div id="packing-list-overseas" class="packing-list"></div>
+            <button class="packing-add-btn" onclick="addPackingItem('overseas')">＋ 항목 추가</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 유용한 팁 섹션 -->
+      <div id="pt-tips" class="pt-section" style="display:none">
+        <div class="tips-header-bar">
+          <h3 class="tips-section-title">💡 유용한 팁</h3>
+          <button class="btn-tip-write" onclick="openTipCompose()">＋ 글 작성</button>
+        </div>
+
+        <!-- 글 작성 폼 -->
+        <div id="tip-compose" class="tip-compose hidden">
+          <input type="text" id="tip-title-input" class="tip-form-input" placeholder="제목을 입력하세요" />
+          <div class="tip-tag-input-row">
+            <input type="text" id="tip-tag-input" class="tip-form-input tip-tag-field"
+              placeholder="태그 입력 후 Enter (예: 일본  공항)"
+              onkeydown="onTipTagKey(event)" />
+            <div id="tip-tag-preview" class="tip-tag-preview"></div>
+          </div>
+          <textarea id="tip-content-input" class="tip-form-textarea" placeholder="내용을 작성하세요..."></textarea>
+          <div class="tip-compose-actions">
+            <button class="btn btn-ghost btn-sm" onclick="closeTipCompose()">취소</button>
+            <button class="btn-tip-write" onclick="saveTip()">저장</button>
+          </div>
+        </div>
+
+        <!-- 태그 필터 바 -->
+        <div id="tip-tag-filter-bar" class="tip-tag-filter-bar"></div>
+
+        <!-- 팁 목록 -->
+        <div id="tips-list" class="tips-list"></div>
+      </div>
+
+    </div>
   </div>
 
   <!-- ====== TRIP DETAIL ====== -->
