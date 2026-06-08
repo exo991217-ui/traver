@@ -704,6 +704,44 @@ input[type="date"]::-webkit-inner-spin-button { display: none; }
 .res-item:hover .res-hover-trash { opacity: 1; }
 .res-hover-trash:hover { background: #fee2e2; border-color: #fca5a5; color: #dc2626; }
 
+/* ---- Schedule row hover delete button ---- */
+.sch-del-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  border: 1.5px solid var(--border);
+  background: #fff;
+  cursor: pointer;
+  color: var(--text-muted);
+  opacity: 0;
+  transition: opacity .13s, background .13s, border-color .13s, color .13s;
+  padding: 0;
+}
+.data-table tbody tr:hover .sch-del-btn { opacity: 1; }
+.sch-del-btn:hover { background: #fee2e2; border-color: #fca5a5; color: #dc2626; }
+
+/* ---- Expense row hover delete button ---- */
+.exp-del-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  border: 1.5px solid var(--border);
+  background: #fff;
+  cursor: pointer;
+  color: var(--text-muted);
+  opacity: 0;
+  transition: opacity .13s, background .13s, border-color .13s, color .13s;
+  padding: 0;
+}
+.data-table tbody tr:hover .exp-del-btn { opacity: 1; }
+.exp-del-btn:hover { background: #fee2e2; border-color: #fca5a5; color: #dc2626; }
+
 /* ---- Bucket list row hover delete button ---- */
 .bkt-del-btn {
   display: inline-flex;
