@@ -60,6 +60,10 @@ let tipInlineEditId = null;
 let _packingDragId = null;
 let _packingDragType = null;
 
+// ★ 준비물 독립 잠금 + 접기 상태
+let packingLocked = { common: false, overseas: false };
+let packingCollapsed = {}; // key: "type_id" → true/false
+
 let dirtyScheduleIds = new Set();
 let dirtyExpenseIds = new Set();
 let dirtyBucketIds = new Set();
@@ -352,25 +356,36 @@ function renderPackingList(type) {
   const topItems = items.filter(i => !i.parentId);
   const childItems = items.filter(i => i.parentId);
 
+  const locked = packingLocked[type];
+  // 잠금 버튼 UI 동기화
+  const lockBtn = document.getElementById("packing-lock-btn-" + type);
+  if (lockBtn) {
+    lockBtn.textContent = locked ? "🔓 잠금 해제" : "🔒 잠금";
+    lockBtn.classList.toggle("packing-lock-btn-active", locked);
+  }
+
   listEl.innerHTML = topItems.map(item => {
     const myChildren = childItems.filter(c => String(c.parentId) === String(item.id));
     if (myChildren.length > 0) {
+      const collapseKey = type + "_" + item.id;
+      const isCollapsed = !!packingCollapsed[collapseKey];
+      const someChecked = myChildren.some(c => c.checked);
+      const partialClass = (!item.checked && someChecked) ? " partial" : "";
       return `
-        <div class="packing-category"
-          ondragover="onPackDragOver(event,'${type}','${item.id}')"
-          ondragleave="onPackDragLeave(event)"
-          ondrop="onPackDrop(event,'${type}','${item.id}')">
+        <div class="packing-category${isCollapsed ? " collapsed" : ""}"
+          ${!locked ? `ondragover="onPackDragOver(event,'${type}','${item.id}')" ondragleave="onPackDragLeave(event)" ondrop="onPackDrop(event,'${type}','${item.id}')"` : ""}>
           <div class="packing-cat-header-row">
-            <span class="pack-drag-handle" title="카테고리">📁</span>
+            ${!locked ? `<span class="pack-drag-handle" title="카테고리 드래그">📁</span>` : ""}
+            <button class="pack-collapse-btn" onclick="togglePackingCollapse('${type}','${item.id}')" title="${isCollapsed ? "펼치기" : "접기"}">${isCollapsed ? "▶" : "▼"}</button>
             <label class="packing-check-label" onclick="togglePackingCheck('${type}',${item.id})">
-              <span class="packing-check-box${item.checked?" ticked":""}"></span>
+              <span class="packing-check-box${item.checked ? " ticked" : partialClass}"></span>
               <span class="packing-cat-name">${escHtml(item.text)}</span>
             </label>
-            <button class="packing-del-btn" onclick="deletePackingItem('${type}',${item.id})" title="삭제">${ICON_TRASH}</button>
+            ${!locked ? `<button class="packing-del-btn" onclick="deletePackingItem('${type}',${item.id})" title="삭제">${ICON_TRASH}</button>` : ""}
           </div>
-          <div class="packing-children">
+          ${isCollapsed ? "" : `<div class="packing-children">
             ${myChildren.map(child => _packingItemHtml(type, child, true)).join("")}
-          </div>
+          </div>`}
         </div>`;
     }
     return _packingItemHtml(type, item, false);
@@ -378,20 +393,21 @@ function renderPackingList(type) {
 }
 
 function _packingItemHtml(type, item, isChild) {
-  return `
-    <div class="packing-item${item.checked?" checked":""}${isChild?" packing-child":""}"
-      id="pack-item-${type}-${item.id}"
-      draggable="true"
+  const locked = packingLocked[type];
+  const dragAttrs = locked ? "" : `draggable="true"
       ondragstart="onPackDragStart(event,'${type}','${item.id}')"
       ondragover="onPackDragOver(event,'${type}','${item.id}')"
       ondragleave="onPackDragLeave(event)"
-      ondrop="onPackDrop(event,'${type}','${item.id}')">
-      <span class="pack-drag-handle" title="드래그하여 카테고리로 묶기">⠿</span>
+      ondrop="onPackDrop(event,'${type}','${item.id}')"`;
+  return `
+    <div class="packing-item${item.checked ? " checked" : ""}${isChild ? " packing-child" : ""}"
+      id="pack-item-${type}-${item.id}" ${dragAttrs}>
+      ${locked ? "" : `<span class="pack-drag-handle" title="드래그하여 카테고리로 묶기">⠿</span>`}
       <label class="packing-check-label" onclick="togglePackingCheck('${type}',${item.id})">
-        <span class="packing-check-box${item.checked?" ticked":""}"></span>
+        <span class="packing-check-box${item.checked ? " ticked" : ""}"></span>
         <span class="packing-text">${escHtml(item.text)}</span>
       </label>
-      <button class="packing-del-btn" onclick="deletePackingItem('${type}',${item.id})" title="삭제">${ICON_TRASH}</button>
+      ${locked ? "" : `<button class="packing-del-btn" onclick="deletePackingItem('${type}',${item.id})" title="삭제">${ICON_TRASH}</button>`}
     </div>`;
 }
 
@@ -475,7 +491,20 @@ function togglePackingCheck(type, id) {
   setTimeout(() => { _packingClickLock = false; }, 300);
   const items = getPackingItems(type);
   const item = items.find(i => String(i.id) === String(id));
-  if (item) item.checked = !item.checked;
+  if (item) {
+    item.checked = !item.checked;
+    // 상위 체크 → 하위 전부 연동
+    const children = items.filter(c => String(c.parentId) === String(id));
+    children.forEach(c => { c.checked = item.checked; });
+    // 하위 체크 변경 → 상위 자동 갱신 (모두 체크면 부모도 체크)
+    if (item.parentId) {
+      const parent = items.find(p => String(p.id) === String(item.parentId));
+      if (parent) {
+        const siblings = items.filter(c => String(c.parentId) === String(item.parentId));
+        parent.checked = siblings.every(s => s.checked);
+      }
+    }
+  }
   savePackingItems(type, items);
   renderPackingList(type);
 }
@@ -488,6 +517,22 @@ function uncheckAllPacking(type) {
   const items = getPackingItems(type);
   items.forEach(i => i.checked = false);
   savePackingItems(type, items); renderPackingList(type);
+}
+
+// ★ 준비물 접기/펼치기
+function togglePackingCollapse(type, id) {
+  const key = type + "_" + id;
+  packingCollapsed[key] = !packingCollapsed[key];
+  renderPackingList(type);
+}
+
+// ★ 준비물 독립 잠금 (드래그 비활성화, 삭제 비활성화, 체크만 가능)
+function togglePackingLock(type) {
+  packingLocked[type] = !packingLocked[type];
+  renderPackingList(type);
+  const addBtn = document.getElementById("packing-add-btn-" + type);
+  if (addBtn) addBtn.style.display = packingLocked[type] ? "none" : "";
+  showToast(packingLocked[type] ? "🔒 준비물이 잠겼어요 (체크만 가능)" : "🔓 잠금 해제됐어요");
 }
 
 // ★ 변경 7: 삭제 시 자식은 최상위로 올림
@@ -542,7 +587,7 @@ function renderTips() {
       return _renderTipInlineEditRow(tip);
     }
     const tagsHtml = (tip.tags||[]).length
-      ? `<span class="tip-flat-tags">(${tip.tags.map(t=>`<span class="tip-tag-chip">#${escHtml(t)}</span>`).join(" ")})</span>`
+      ? `<span class="tip-flat-tags">${tip.tags.map(t=>`<span class="tip-tag-chip">#${escHtml(t)}</span>`).join(" ")}</span>`
       : "";
     const hasSep = tip.title || (tip.tags||[]).length;
     const sep = hasSep && tip.content ? '<span class="tip-flat-sep">—</span>' : "";
@@ -701,6 +746,22 @@ async function openTrip(tripId) {
   scheduleInlineEditId = null; expenseInlineEditId = null;
   wishInlineEditId = null; bucketInlineEditId = null;
   dirtyScheduleIds.clear(); dirtyExpenseIds.clear(); dirtyBucketIds.clear();
+
+  // ★ 여행 전환 시 이전 데이터 즉시 초기화 (다른 여행 데이터가 잠깐 보이는 버그 방지)
+  scheduleItems = [];
+  expenseItems = [];
+  currentResItems = [];
+  allBucketItems = [];
+  const spinner = `<tr><td colspan="99" class="empty-msg"><div class="spinner" style="width:20px;height:20px;margin:10px auto"></div></td></tr>`;
+  const sTbody = document.getElementById("schedule-tbody");
+  if (sTbody) sTbody.innerHTML = spinner;
+  const eTbody = document.getElementById("expense-tbody");
+  if (eTbody) eTbody.innerHTML = spinner;
+  updateBudget(0);
+  ["항공","숙소","기타"].forEach(t => {
+    const el = document.getElementById("res-list-" + t);
+    if (el) el.innerHTML = "";
+  });
 
   const doc = await tripsRef().doc(tripId).get();
   currentTrip = { id: doc.id, ...doc.data() };
@@ -1146,7 +1207,9 @@ function autoCalcKrwEdit(id) {
 }
 
 async function loadSchedules() {
+  const tid = currentTripId;
   const snap = await schedulesRef().orderBy("date").get().catch(() => ({ docs: [] }));
+  if (tid !== currentTripId) return; // 다른 여행으로 전환됐으면 무시
   let items = snap.docs.map(d => {
     const data = d.data();
     if (data.mapUrl) data.mapUrl = parseMapInput(data.mapUrl) || data.mapUrl;
@@ -1439,7 +1502,9 @@ function toggleExpenseAddForm() {
 }
 
 async function loadExpenses() {
+  const tid = currentTripId;
   const snap = await expensesRef().orderBy("date").get().catch(() => ({ docs: [] }));
+  if (tid !== currentTripId) return; // 다른 여행으로 전환됐으면 무시
   expenseItems = snap.docs.map(d => ({ id: d.id, ...d.data() }));
   expenseItems.sort((a,b) => (a.date||"").localeCompare(b.date||""));
   renderExpenses(expenseItems);
@@ -1597,7 +1662,9 @@ function updateBudget(total) {
 function reservationsRef() { return tripsRef().doc(currentTripId).collection("reservations"); }
 
 async function loadReservations() {
+  const tid = currentTripId;
   const snap = await reservationsRef().orderBy("date").get().catch(() => ({ docs: [] }));
+  if (tid !== currentTripId) return; // 다른 여행으로 전환됐으면 무시
   currentResItems = snap.docs.map(d => ({ id: d.id, ...d.data() }));
   renderReservations(currentResItems);
 }
@@ -1850,10 +1917,12 @@ function onTripBucketFilterChange() {
 
 async function loadTripBucketItems() {
   if (!currentUser) return;
+  const tid = currentTripId;
   const saved = currentTripId ? (localStorage.getItem("trip_bucket_region_" + currentTripId) || "") : "";
   const inp = document.getElementById("trip-bucket-region");
   if (inp) inp.value = saved;
   const snap = await bucketRef().get().catch(() => ({ docs: [] }));
+  if (tid !== currentTripId) return; // 다른 여행으로 전환됐으면 무시
   const items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
   allBucketItems = items;
   renderTripBucket(items);
@@ -2293,6 +2362,76 @@ async function saveBucketEditModeRow(id, silent) {
   if (idx !== -1) allBucketItems[idx] = { ...allBucketItems[idx], ...updateData };
   if (!silent) showToast("저장 완료 ✅");
   return true;
+}
+
+// ============================================================
+// 일정 공유 (읽기 전용 링크)
+// ============================================================
+function generateShareToken() {
+  const arr = new Uint8Array(18);
+  crypto.getRandomValues(arr);
+  return Array.from(arr, b => b.toString(36).padStart(2, "0")).join("").substring(0, 24);
+}
+
+async function shareTrip() {
+  if (!currentTripId || !currentTrip) return;
+  showToast("공유 링크 생성 중... ⏳");
+
+  let token = currentTrip.shareToken || generateShareToken();
+
+  const [schSnap, expSnap, resSnap] = await Promise.all([
+    schedulesRef().get().catch(() => ({ docs: [] })),
+    expensesRef().get().catch(() => ({ docs: [] })),
+    reservationsRef().get().catch(() => ({ docs: [] })),
+  ]);
+
+  const snapshot = {
+    title:           currentTrip.title || "",
+    country:         currentTrip.country || "",
+    city:            currentTrip.city || "",
+    startDate:       currentTrip.startDate || "",
+    endDate:         currentTrip.endDate || "",
+    companions:      currentTrip.companions || "",
+    foreignCurrency: currentTrip.foreignCurrency || "",
+    exchangeRate:    currentTrip.exchangeRate || null,
+    schedules:       schSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+    expenses:        expSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+    reservations:    resSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+    sharedAt:        new Date().toISOString(),
+  };
+
+  await db.collection("sharedTrips").doc(token).set(snapshot);
+
+  if (!currentTrip.shareToken) {
+    await tripsRef().doc(currentTripId).update({ shareToken: token });
+    currentTrip.shareToken = token;
+  }
+
+  const shareUrl = location.origin + location.pathname.replace(/\/[^\/]*$/, "/") + "share.html?token=" + token;
+  const inp = document.getElementById("share-url-display");
+  if (inp) inp.value = shareUrl;
+  openModal("modal-share");
+  showToast("공유 링크가 생성됐어요 🔗");
+}
+
+function copyShareUrl() {
+  const inp = document.getElementById("share-url-display");
+  if (!inp) return;
+  inp.select();
+  navigator.clipboard.writeText(inp.value)
+    .then(() => showToast("링크가 복사됐어요 📋"))
+    .catch(() => { document.execCommand("copy"); showToast("링크가 복사됐어요 📋"); });
+}
+
+async function stopSharing() {
+  if (!confirm("공유를 중단할까요? 링크가 더 이상 작동하지 않아요.")) return;
+  if (currentTrip && currentTrip.shareToken) {
+    await db.collection("sharedTrips").doc(currentTrip.shareToken).delete().catch(() => {});
+    await tripsRef().doc(currentTripId).update({ shareToken: null }).catch(() => {});
+    currentTrip.shareToken = null;
+  }
+  closeModal("modal-share");
+  showToast("공유가 중단됐어요");
 }
 
 // ============================================================
