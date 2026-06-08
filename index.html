@@ -721,16 +721,12 @@
       </h2>
       <button class="modal-close" onclick="closeModal('modal-map-entry')">✕</button>
     </div>
-    <p style="font-size:0.83rem;color:var(--text-muted);margin-bottom:12px">
-      구글 지도 링크 또는 HTML 임베드 코드를 붙여넣으세요.<br>
-      <span style="font-size:0.75rem">(지도 공유 → "지도 퍼가기" 에서 복사한 &lt;iframe&gt; 코드도 가능)</span>
-    </p>
-    <textarea id="map-entry-input" placeholder="https://maps.google.com/...&#10;또는&#10;&lt;iframe src=&quot;...&quot;&gt;&lt;/iframe&gt;" rows="4"></textarea>
-    <div id="map-entry-preview-row" class="hidden" style="margin-bottom:6px">
-      <a id="map-entry-preview-link" href="#" target="_blank" rel="noreferrer" style="font-size:0.77rem;color:var(--pd);word-break:break-all"></a>
-    </div>
+    <textarea id="map-entry-input" placeholder="구글 지도 링크 또는 &lt;iframe&gt; 코드를 붙여넣으세요" rows="2" style="margin-bottom:10px"></textarea>
     <div id="map-entry-iframe-wrap" class="hidden" style="margin-bottom:10px">
-      <iframe id="map-entry-iframe" src="" style="width:100%;height:220px;border:1.5px solid var(--border);border-radius:10px;display:block" loading="lazy" allowfullscreen title="지도 미리보기"></iframe>
+      <iframe id="map-entry-iframe" src="" style="width:100%;height:240px;border:1.5px solid var(--border);border-radius:10px;display:block" loading="lazy" allowfullscreen title="지도 미리보기"></iframe>
+    </div>
+    <div id="map-entry-preview-row" class="hidden" style="margin-bottom:8px">
+      <a id="map-entry-preview-link" href="#" target="_blank" rel="noreferrer" style="font-size:0.77rem;color:var(--pd);word-break:break-all"></a>
     </div>
     <div class="form-actions" style="margin-top:0">
       <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-map-entry')">취소</button>
