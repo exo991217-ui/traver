@@ -450,7 +450,7 @@ input[type="date"]::-webkit-inner-spin-button { display: none; }
 .res-link-btn {
   position: absolute;
   top: 10px;
-  right: 12px;
+  right: 44px;
   width: 26px;
   height: 26px;
   border-radius: 7px;
@@ -677,6 +677,51 @@ input[type="date"]::-webkit-inner-spin-button { display: none; }
   box-shadow: inset 3px 0 0 var(--pd, #4f46e5);
 }
 .data-table .clickable-row:hover td { background: transparent; }
+/* Bug 3 fix: bucket table — prevent double hover highlight on td */
+.bucket-list-table .clickable-row:hover td { background: transparent; }
+.bucket-list-table .clickable-row:hover { background: var(--pl, #eef2ff) !important; }
+
+/* ---- Reservation hover-trash button ---- */
+.res-hover-trash {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  border: 1.5px solid var(--border);
+  background: var(--surface, #fff);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  opacity: 0;
+  transition: opacity .13s, background .13s, border-color .13s, color .13s;
+  padding: 0;
+  z-index: 1;
+}
+.res-item:hover .res-hover-trash { opacity: 1; }
+.res-hover-trash:hover { background: #fee2e2; border-color: #fca5a5; color: #dc2626; }
+
+/* ---- Bucket list row hover delete button ---- */
+.bkt-del-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  border: 1.5px solid var(--border);
+  background: #fff;
+  cursor: pointer;
+  color: var(--text-muted);
+  opacity: 0;
+  transition: opacity .13s, background .13s, border-color .13s, color .13s;
+  padding: 0;
+}
+.bucket-list-table tbody tr:hover .bkt-del-btn { opacity: 1; }
+.bkt-del-btn:hover { background: #fee2e2; border-color: #fca5a5; color: #dc2626; }
 
 /* locked state — disable hover & pointer */
 body.page-locked .clickable-row { cursor: default !important; }
