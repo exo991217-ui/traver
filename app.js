@@ -246,10 +246,215 @@ async function loadTrips() {
 }
 
 function filterTrips(type, el) {
+  document.getElementById("packing-tips-panel").classList.add("hidden");
+  document.getElementById("trips-container").style.display = "";
   tripFilter = type;
   document.querySelectorAll(".chip").forEach(c => c.classList.remove("active"));
   el.classList.add("active");
   loadTrips();
+}
+
+// ============================================================
+// 준비물과 팁
+// ============================================================
+let _tipActiveTag = "all";
+let _tipComposeTags = [];
+
+function showPackingTips(el) {
+  document.getElementById("trips-container").style.display = "none";
+  document.getElementById("packing-tips-panel").classList.remove("hidden");
+  document.querySelectorAll(".chip").forEach(c => c.classList.remove("active"));
+  el.classList.add("active");
+  renderPackingList("common");
+  renderPackingList("overseas");
+  renderTips();
+}
+
+function showPTSubtab(tab, el) {
+  document.querySelectorAll(".pt-subtab").forEach(b => b.classList.remove("active"));
+  el.classList.add("active");
+  document.getElementById("pt-packing").style.display = tab === "packing" ? "" : "none";
+  document.getElementById("pt-tips").style.display   = tab === "tips"    ? "" : "none";
+}
+
+// ---- 준비물 ----
+const PACKING_DEFAULTS = {
+  common: [
+    {id:1,text:"여권",checked:false},{id:2,text:"항공권 / 예약 확인서",checked:false},
+    {id:3,text:"충전기",checked:false},{id:4,text:"보조배터리",checked:false},
+    {id:5,text:"상비약",checked:false},{id:6,text:"세면도구",checked:false},
+    {id:7,text:"여행용 멀티탭",checked:false},{id:8,text:"우산 / 우비",checked:false},
+  ],
+  overseas: [
+    {id:1,text:"유심 / eSIM",checked:false},{id:2,text:"환전",checked:false},
+    {id:3,text:"해외결제 카드",checked:false},{id:4,text:"입국 관련 서류",checked:false},
+    {id:5,text:"여행자 보험",checked:false},{id:6,text:"전자 교통카드",checked:false},
+    {id:7,text:"번역 앱",checked:false},{id:8,text:"비상 연락처 출력",checked:false},
+  ],
+};
+
+function getPackingItems(type) {
+  const s = localStorage.getItem("packing_" + type);
+  return s ? JSON.parse(s) : PACKING_DEFAULTS[type].map(i => ({...i}));
+}
+function savePackingItems(type, items) { localStorage.setItem("packing_" + type, JSON.stringify(items)); }
+
+function renderPackingList(type) {
+  const items = getPackingItems(type);
+  const checked = items.filter(i => i.checked).length;
+  const progEl = document.getElementById("packing-progress-" + type);
+  if (progEl) {
+    progEl.textContent = checked + " / " + items.length;
+    progEl.className = "packing-progress" + (checked === items.length && items.length > 0 ? " done" : "");
+  }
+  const listEl = document.getElementById("packing-list-" + type);
+  if (!listEl) return;
+  if (!items.length) { listEl.innerHTML = '<div class="packing-empty">아래 버튼으로 항목을 추가하세요</div>'; return; }
+  listEl.innerHTML = items.map(item => `
+    <div class="packing-item${item.checked ? " checked" : ""}">
+      <label class="packing-check-label" onclick="togglePackingCheck('${type}',${item.id})">
+        <span class="packing-check-box${item.checked ? " ticked" : ""}"></span>
+        <span class="packing-text">${escHtml(item.text)}</span>
+      </label>
+      <button class="packing-del-btn" onclick="deletePackingItem('${type}',${item.id})">${ICON_TRASH}</button>
+    </div>`).join("");
+}
+
+function addPackingItem(type) {
+  const text = prompt("새 항목 이름을 입력하세요:");
+  if (!text || !text.trim()) return;
+  const items = getPackingItems(type);
+  items.push({id: Date.now(), text: text.trim(), checked: false});
+  savePackingItems(type, items);
+  renderPackingList(type);
+}
+function togglePackingCheck(type, id) {
+  const items = getPackingItems(type);
+  const item = items.find(i => i.id === id);
+  if (item) item.checked = !item.checked;
+  savePackingItems(type, items);
+  renderPackingList(type);
+}
+function deletePackingItem(type, id) {
+  savePackingItems(type, getPackingItems(type).filter(i => i.id !== id));
+  renderPackingList(type);
+}
+
+// ---- 유용한 팁 ----
+function getTips() { const s = localStorage.getItem("tripTips"); return s ? JSON.parse(s) : []; }
+function saveTipsData(tips) { localStorage.setItem("tripTips", JSON.stringify(tips)); }
+
+function renderTipTagFilterBar() {
+  const tips = getTips();
+  const allTags = [...new Set(tips.flatMap(t => t.tags || []))];
+  const bar = document.getElementById("tip-tag-filter-bar");
+  if (!bar) return;
+  if (!allTags.length) { bar.innerHTML = ""; return; }
+  bar.innerHTML =
+    `<button class="tip-filter-chip${_tipActiveTag === "all" ? " active" : ""}" onclick="setTipTagFilter('all')">전체</button>` +
+    allTags.map(tag =>
+      `<button class="tip-filter-chip${_tipActiveTag === tag ? " active" : ""}" onclick="setTipTagFilter('${escHtml(tag)}')">#${escHtml(tag)}</button>`
+    ).join("");
+}
+
+function setTipTagFilter(tag) { _tipActiveTag = tag; renderTipTagFilterBar(); renderTips(); }
+
+function renderTips() {
+  renderTipTagFilterBar();
+  let tips = getTips();
+  if (_tipActiveTag !== "all") tips = tips.filter(t => (t.tags || []).includes(_tipActiveTag));
+  const listEl = document.getElementById("tips-list");
+  if (!listEl) return;
+  if (!tips.length) {
+    listEl.innerHTML = `<div class="tips-empty">${_tipActiveTag !== "all"
+      ? `'#${escHtml(_tipActiveTag)}' 태그의 팁이 없어요`
+      : "아직 작성된 팁이 없어요.<br>글 작성을 눌러 첫 팁을 남겨보세요!"}</div>`;
+    return;
+  }
+  listEl.innerHTML = tips.map(tip => `
+    <div class="tip-row">
+      <div class="tip-row-header" onclick="toggleTipDetail(${tip.id})">
+        <div class="tip-row-title-wrap">
+          <span class="tip-row-title">${escHtml(tip.title)}</span>
+          ${(tip.tags||[]).length ? `<div class="tip-row-tags">${tip.tags.map(t=>`<span class="tip-tag-chip">#${escHtml(t)}</span>`).join("")}</div>` : ""}
+        </div>
+        <div class="tip-row-right">
+          <span class="tip-date">${tip.date}</span>
+          <button class="packing-del-btn tip-del-btn" onclick="event.stopPropagation();deleteTip(${tip.id})">${ICON_TRASH}</button>
+          <span class="tip-chevron" id="tip-chev-${tip.id}">›</span>
+        </div>
+      </div>
+      <div class="tip-detail" id="tip-detail-${tip.id}">
+        <div class="tip-content">${escHtml(tip.content).replace(/\n/g,"<br>")}</div>
+      </div>
+    </div>`).join("");
+}
+
+function toggleTipDetail(id) {
+  const detail = document.getElementById("tip-detail-" + id);
+  const chev   = document.getElementById("tip-chev-" + id);
+  if (!detail) return;
+  const open = detail.classList.contains("open");
+  detail.classList.toggle("open", !open);
+  if (chev) chev.style.transform = open ? "" : "rotate(90deg)";
+}
+
+function openTipCompose() {
+  _tipComposeTags = [];
+  document.getElementById("tip-title-input").value = "";
+  document.getElementById("tip-tag-input").value = "";
+  document.getElementById("tip-content-input").value = "";
+  renderComposeTags();
+  document.getElementById("tip-compose").classList.remove("hidden");
+  document.getElementById("tip-title-input").focus();
+}
+function closeTipCompose() {
+  document.getElementById("tip-compose").classList.add("hidden");
+  _tipComposeTags = [];
+}
+
+function onTipTagKey(e) {
+  if (e.key === "Enter" || e.key === ",") {
+    e.preventDefault();
+    const val = e.target.value.replace(/,/g,"").trim();
+    if (val && !_tipComposeTags.includes(val)) { _tipComposeTags.push(val); renderComposeTags(); }
+    e.target.value = "";
+  }
+}
+function removeTipComposeTag(tag) {
+  _tipComposeTags = _tipComposeTags.filter(t => t !== tag);
+  renderComposeTags();
+}
+function renderComposeTags() {
+  const el = document.getElementById("tip-tag-preview");
+  if (!el) return;
+  el.innerHTML = _tipComposeTags.map(t =>
+    `<span class="compose-tag-chip">#${escHtml(t)}<button class="compose-tag-del" onclick="removeTipComposeTag('${escHtml(t)}')">×</button></span>`
+  ).join("");
+}
+
+function saveTip() {
+  const title   = document.getElementById("tip-title-input").value.trim();
+  const content = document.getElementById("tip-content-input").value.trim();
+  const rawTag  = document.getElementById("tip-tag-input").value.replace(/,/g,"").trim();
+  const tags = [..._tipComposeTags];
+  if (rawTag && !tags.includes(rawTag)) tags.push(rawTag);
+  if (!title)   { showToast("제목을 입력해주세요"); return; }
+  if (!content) { showToast("내용을 입력해주세요"); return; }
+  const tips = getTips();
+  const now = new Date();
+  const dateStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
+  tips.unshift({ id: Date.now(), title, content, tags, date: dateStr });
+  saveTipsData(tips);
+  closeTipCompose();
+  _tipActiveTag = "all";
+  renderTips();
+  showToast("저장됐어요! ✨");
+}
+function deleteTip(id) {
+  if (!confirm("이 팁을 삭제할까요?")) return;
+  saveTipsData(getTips().filter(t => t.id !== id));
+  renderTips();
 }
 
 async function createTrip() {
