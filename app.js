@@ -778,10 +778,10 @@ function renderScheduleTable(items) {
     const catBadge = s.category ? `<span class="badge badge-${s.category.replace(/\//g,"\\/")}"> ${s.category}</span>` : "-";
     const mapBtn = buildMapBtn(s);
     const notesDisplay = renderLink(s.notes, "비고");
-    const checkCell = withCheck
-      ? `<td style="text-align:center;padding:4px"><input type="checkbox" class="row-check sch-row-check" id="sch-check-${s.id}" data-id="${s.id}" onchange="onRowCheckChange('schedule')" /></td>`
-      : `<td style="width:0;padding:0"></td>`;
-    const clickable = withCheck ? "" : `class="clickable-row" onclick="if(!isLocked&&!scheduleEditMode)openScheduleEditModal('${s.id}')"`;
+    const actionCell = `<td class="sch-row-action" style="width:32px;padding:4px;text-align:center">
+      <button class="sch-del-btn" onclick="event.stopPropagation();deleteSchedule('${s.id}')" title="삭제">${ICON_TRASH}</button>
+    </td>`;
+    const clickable = `class="clickable-row" onclick="if(!isLocked)openScheduleEditModal('${s.id}')"`;
     return `<tr ${clickable}>
       <td>${catBadge}</td>
       <td style="white-space:nowrap;font-size:0.8rem">${formatDateShort(s.date)}</td>
@@ -791,7 +791,7 @@ function renderScheduleTable(items) {
       <td>${getTransBadge(s.transportation)}</td>
       <td>${notesDisplay}</td>
       <td style="text-align:center">${mapBtn}</td>
-      ${checkCell}
+      ${actionCell}
     </tr>`;
   };
   tbody.innerHTML = items.map(s => schRow(s, scheduleEditMode)).join("");
@@ -1058,17 +1058,17 @@ function renderExpenses(items) {
     const foreignDisp = hasForeign && e.amountForeign != null
       ? (CURRENCY_SYMBOLS[currentTrip.foreignCurrency] || "") + Number(e.amountForeign).toLocaleString()
       : "-";
-    const checkCell = withCheck
-      ? `<td style="text-align:center;padding:4px"><input type="checkbox" class="row-check exp-row-check" id="exp-check-${e.id}" data-id="${e.id}" onchange="onRowCheckChange('expense')" /></td>`
-      : `<td style="width:0;padding:0"></td>`;
-    const clickable = withCheck ? "" : `class="clickable-row" onclick="if(!isLocked&&!expenseEditMode)openExpenseEditModal('${e.id}')"`;
+    const actionCell = `<td class="exp-row-action" style="width:32px;padding:4px;text-align:center">
+      <button class="exp-del-btn" onclick="event.stopPropagation();deleteExpense('${e.id}')" title="삭제">${ICON_TRASH}</button>
+    </td>`;
+    const clickable = `class="clickable-row" onclick="if(!isLocked)openExpenseEditModal('${e.id}')"`;
     return `<tr ${clickable}>
       <td>${catBadge}</td>
       <td style="white-space:nowrap;font-size:0.8rem">${formatDateShort(e.date)}</td>
       <td>${escHtml(e.title)}</td>
       <td style="text-align:right;font-weight:600">${e.amountKrw != null ? Number(e.amountKrw).toLocaleString() + "원" : "-"}</td>
       <td style="text-align:right;color:var(--text-muted)">${foreignDisp}</td>
-      ${checkCell}
+      ${actionCell}
     </tr>`;
   };
   tbody.innerHTML = items.map(e => expRow(e, expenseEditMode)).join("");
@@ -1487,7 +1487,6 @@ function renderTripBucket(items) {
             <span class="wish-item-name ${item.visited?"done":""}">${escHtml(item.placeName)}</span>
             <span class="wish-item-badges">${regionBadge}</span>
             <div class="wish-item-actions">
-              <button class="btn btn-ghost btn-icon" style="width:22px;height:22px;padding:0;color:var(--pd)" onclick="event.stopPropagation();openTripBucketModal('${item.id}')" title="수정">${ICON_EDIT}</button>
               <button class="btn btn-ghost btn-icon" style="width:22px;height:22px;padding:0;color:var(--text-muted)" onclick="event.stopPropagation();deleteBucketItem('${item.id}')" title="삭제">${ICON_TRASH}</button>
             </div>
           </div>`;
