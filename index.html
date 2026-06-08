@@ -721,15 +721,29 @@
       </h2>
       <button class="modal-close" onclick="closeModal('modal-map-entry')">✕</button>
     </div>
-    <textarea id="map-entry-input" placeholder="구글 지도 링크 또는 &lt;iframe&gt; 코드를 붙여넣으세요" rows="2" style="margin-bottom:10px"></textarea>
+    <!-- iframe 미리보기 -->
     <div id="map-entry-iframe-wrap" class="hidden" style="margin-bottom:10px">
-      <iframe id="map-entry-iframe" src="" style="width:100%;height:240px;border:1.5px solid var(--border);border-radius:10px;display:block" loading="lazy" allowfullscreen title="지도 미리보기"></iframe>
+      <iframe id="map-entry-iframe" src="" style="width:100%;height:230px;border:1.5px solid var(--border);border-radius:10px;display:block" loading="lazy" allowfullscreen title="지도 미리보기"></iframe>
     </div>
-    <div id="map-entry-preview-row" class="hidden" style="margin-bottom:8px">
-      <a id="map-entry-preview-link" href="#" target="_blank" rel="noreferrer" style="font-size:0.77rem;color:var(--pd);word-break:break-all"></a>
+    <!-- 뷰 모드: URL 링크 + 수정 버튼 -->
+    <div id="map-entry-url-view" class="hidden" style="display:flex;align-items:center;gap:8px;margin-bottom:12px;padding:8px 10px;background:var(--surface2);border-radius:8px">
+      <a id="map-entry-preview-link" href="#" target="_blank" rel="noreferrer" style="flex:1;font-size:.8rem;color:var(--pd);word-break:break-all;min-width:0"></a>
+      <button class="btn btn-ghost btn-sm" style="flex-shrink:0;white-space:nowrap" onclick="startMapLinkEdit()">✏️ 수정</button>
+    </div>
+    <!-- 빈 상태 -->
+    <div id="map-entry-empty" style="text-align:center;padding:22px 0 14px;color:var(--text-muted);font-size:.88rem">
+      <div style="margin-bottom:10px">🗺️ 연결된 지도가 없어요</div>
+      <button class="btn btn-outline btn-sm" onclick="startMapLinkEdit()">+ 지도 링크 추가</button>
+    </div>
+    <!-- 편집 모드: 입력창 (숨김) -->
+    <div id="map-entry-url-edit" class="hidden" style="margin-bottom:12px">
+      <input id="map-entry-input" type="text" placeholder="구글 지도 링크 또는 &lt;iframe&gt; 코드 붙여넣기" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:.85rem" oninput="updateMapEntryPreview()" />
+      <div style="display:flex;justify-content:flex-end;gap:6px;margin-top:6px">
+        <button class="btn btn-ghost btn-sm" onclick="cancelMapLinkEdit()">취소</button>
+      </div>
     </div>
     <div class="form-actions" style="margin-top:0">
-      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-map-entry')">취소</button>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-map-entry')">닫기</button>
       <button class="btn btn-outline btn-sm" onclick="clearTripMapLink()">연결 해제</button>
       <button class="btn btn-primary btn-sm" onclick="saveTripMapLink()">저장</button>
     </div>
