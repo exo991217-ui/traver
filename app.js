@@ -1762,7 +1762,7 @@ async function loadTripBucketItems() {
   if (!currentUser) return;
   const saved = currentTripId ? (localStorage.getItem("trip_bucket_region_" + currentTripId) || "") : "";
   const inp = document.getElementById("trip-bucket-region");
-  if (inp && inp.value === "" && saved) inp.value = saved;
+  if (inp) inp.value = saved;
   const snap = await bucketRef().get().catch(() => ({ docs: [] }));
   const items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
   renderTripBucket(items);
