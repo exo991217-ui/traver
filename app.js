@@ -64,6 +64,32 @@ const BUCKET_CATEGORIES = ["풍경", "맛집", "카페", "체험", "기념품", 
 const CAT_EMOJI = { 풍경:"🌄", 맛집:"🍜", 카페:"☕", 체험:"🎭", 기념품:"🎁", 쇼핑:"🛍️", 기타:"📌" };
 
 // ============================================================
+// 국기 이모지
+// ============================================================
+function getCountryFlag(country) {
+  if (!country) return "✈️";
+  const flags = {
+    "한국":"🇰🇷","국내":"🇰🇷",
+    "일본":"🇯🇵","중국":"🇨🇳","대만":"🇹🇼","홍콩":"🇭🇰","마카오":"🇲🇴",
+    "태국":"🇹🇭","베트남":"🇻🇳","싱가포르":"🇸🇬","말레이시아":"🇲🇾",
+    "인도네시아":"🇮🇩","필리핀":"🇵🇭","캄보디아":"🇰🇭","미얀마":"🇲🇲",
+    "라오스":"🇱🇦","몽골":"🇲🇳","스리랑카":"🇱🇰","네팔":"🇳🇵",
+    "인도":"🇮🇳","방글라데시":"🇧🇩","파키스탄":"🇵🇰",
+    "미국":"🇺🇸","캐나다":"🇨🇦","멕시코":"🇲🇽","쿠바":"🇨🇺",
+    "브라질":"🇧🇷","아르헨티나":"🇦🇷","페루":"🇵🇪","칠레":"🇨🇱","콜롬비아":"🇨🇴",
+    "영국":"🇬🇧","프랑스":"🇫🇷","독일":"🇩🇪","이탈리아":"🇮🇹","스페인":"🇪🇸",
+    "포르투갈":"🇵🇹","네덜란드":"🇳🇱","벨기에":"🇧🇪","스위스":"🇨🇭",
+    "오스트리아":"🇦🇹","체코":"🇨🇿","헝가리":"🇭🇺","폴란드":"🇵🇱",
+    "그리스":"🇬🇷","터키":"🇹🇷","노르웨이":"🇳🇴","스웨덴":"🇸🇪",
+    "덴마크":"🇩🇰","핀란드":"🇫🇮","아이슬란드":"🇮🇸","러시아":"🇷🇺",
+    "호주":"🇦🇺","뉴질랜드":"🇳🇿",
+    "UAE":"🇦🇪","두바이":"🇦🇪","카타르":"🇶🇦","이스라엘":"🇮🇱",
+    "이집트":"🇪🇬","모로코":"🇲🇦","케냐":"🇰🇪","남아프리카":"🇿🇦",
+  };
+  return flags[country] || "🌍";
+}
+
+// ============================================================
 // CATEGORIES
 // ============================================================
 const DEFAULT_CATS = {
@@ -228,7 +254,7 @@ async function loadTrips() {
       <div class="trip-list">
         ${byYear[year].map(t => `
           <div class="trip-card" onclick="openTrip('${t.id}')">
-            <div class="trip-card-emoji">✈️</div>
+            <div class="trip-card-emoji">${getCountryFlag(t.country)}</div>
             <div class="trip-card-body">
               <div class="trip-card-title">${t.title}</div>
               <div class="trip-card-meta">
@@ -328,10 +354,26 @@ function addPackingItem(type) {
   savePackingItems(type, items);
   renderPackingList(type);
 }
+let _packingClickLock = false;
 function togglePackingCheck(type, id) {
+  if (_packingClickLock) return;
+  _packingClickLock = true;
+  setTimeout(() => { _packingClickLock = false; }, 300);
   const items = getPackingItems(type);
   const item = items.find(i => i.id === id);
   if (item) item.checked = !item.checked;
+  savePackingItems(type, items);
+  renderPackingList(type);
+}
+function checkAllPacking(type) {
+  const items = getPackingItems(type);
+  items.forEach(i => i.checked = true);
+  savePackingItems(type, items);
+  renderPackingList(type);
+}
+function uncheckAllPacking(type) {
+  const items = getPackingItems(type);
+  items.forEach(i => i.checked = false);
   savePackingItems(type, items);
   renderPackingList(type);
 }
@@ -359,6 +401,12 @@ function renderTipTagFilterBar() {
 
 function setTipTagFilter(tag) { _tipActiveTag = tag; renderTipTagFilterBar(); renderTips(); }
 
+function linkify(html) {
+  return html.replace(/(https?:\/\/[^\s<>"'&]+)/g, url =>
+    `<a href="${url}" target="_blank" rel="noreferrer" class="tip-auto-link">${url}</a>`
+  );
+}
+
 function renderTips() {
   renderTipTagFilterBar();
   let tips = getTips();
@@ -372,7 +420,7 @@ function renderTips() {
     return;
   }
   listEl.innerHTML = tips.map(tip => `
-    <div class="tip-row">
+    <div class="tip-row" id="tip-row-${tip.id}">
       <div class="tip-row-header" onclick="toggleTipDetail(${tip.id})">
         <div class="tip-row-title-wrap">
           <span class="tip-row-title">${escHtml(tip.title)}</span>
@@ -385,9 +433,63 @@ function renderTips() {
         </div>
       </div>
       <div class="tip-detail" id="tip-detail-${tip.id}">
-        <div class="tip-content">${escHtml(tip.content).replace(/\n/g,"<br>")}</div>
+        <div id="tip-view-${tip.id}">
+          <div class="tip-content">${linkify(escHtml(tip.content).replace(/\n/g,"<br>"))}</div>
+          <div style="text-align:right;margin-top:10px">
+            <button class="btn btn-outline btn-sm" style="font-size:.78rem" onclick="event.stopPropagation();openTipEdit(${tip.id})">✏️ 수정</button>
+          </div>
+        </div>
+        <div id="tip-edit-${tip.id}" class="hidden">
+          <div style="margin-bottom:8px">
+            <label style="font-size:.78rem;font-weight:700;color:var(--text-muted);display:block;margin-bottom:4px">제목</label>
+            <input type="text" id="tip-edit-title-${tip.id}" class="tip-form-input" value="${escHtml(tip.title)}" />
+          </div>
+          <div style="margin-bottom:8px">
+            <label style="font-size:.78rem;font-weight:700;color:var(--text-muted);display:block;margin-bottom:4px">태그 (쉼표 구분)</label>
+            <input type="text" id="tip-edit-tags-${tip.id}" class="tip-form-input" value="${escHtml((tip.tags||[]).join(", "))}" />
+          </div>
+          <div style="margin-bottom:8px">
+            <label style="font-size:.78rem;font-weight:700;color:var(--text-muted);display:block;margin-bottom:4px">내용</label>
+            <textarea id="tip-edit-content-${tip.id}" class="tip-form-textarea">${escHtml(tip.content)}</textarea>
+          </div>
+          <div class="tip-compose-actions">
+            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();closeTipEdit(${tip.id})">취소</button>
+            <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();saveTipEdit(${tip.id})">저장</button>
+          </div>
+        </div>
       </div>
     </div>`).join("");
+}
+
+function openTipEdit(id) {
+  const detail = document.getElementById("tip-detail-" + id);
+  if (detail && !detail.classList.contains("open")) {
+    detail.classList.add("open");
+    const chev = document.getElementById("tip-chev-" + id);
+    if (chev) chev.style.transform = "rotate(90deg)";
+  }
+  document.getElementById("tip-view-" + id)?.classList.add("hidden");
+  document.getElementById("tip-edit-" + id)?.classList.remove("hidden");
+  document.getElementById("tip-edit-title-" + id)?.focus();
+}
+function closeTipEdit(id) {
+  document.getElementById("tip-view-" + id)?.classList.remove("hidden");
+  document.getElementById("tip-edit-" + id)?.classList.add("hidden");
+}
+function saveTipEdit(id) {
+  const tips = getTips();
+  const tip = tips.find(t => t.id === id);
+  if (!tip) return;
+  const title = document.getElementById("tip-edit-title-" + id)?.value.trim();
+  const content = document.getElementById("tip-edit-content-" + id)?.value.trim() || "";
+  const tagsRaw = document.getElementById("tip-edit-tags-" + id)?.value.trim() || "";
+  if (!title) { showToast("제목을 입력해주세요"); return; }
+  tip.title = title;
+  tip.content = content;
+  tip.tags = tagsRaw ? tagsRaw.split(",").map(t => t.trim()).filter(Boolean) : [];
+  saveTipsData(tips);
+  renderTips();
+  showToast("팁이 수정되었어요 ✅");
 }
 
 function toggleTipDetail(id) {
@@ -619,11 +721,22 @@ function updateMapEntryPreview() {
   const parsed = parseMapInput(raw);
   const row = document.getElementById("map-entry-preview-row");
   const link = document.getElementById("map-entry-preview-link");
+  const iframeWrap = document.getElementById("map-entry-iframe-wrap");
+  const iframe = document.getElementById("map-entry-iframe");
   if (parsed) {
-    row.classList.remove("hidden");
-    link.href = parsed; link.textContent = parsed;
+    if (row) { row.classList.remove("hidden"); }
+    if (link) { link.href = parsed; link.textContent = parsed; }
+    const embedUrl = buildMapEmbedUrl(parsed);
+    if (embedUrl && iframe && iframeWrap) {
+      iframe.src = embedUrl;
+      iframeWrap.classList.remove("hidden");
+    } else if (iframeWrap) {
+      iframeWrap.classList.add("hidden");
+    }
   } else {
-    row.classList.add("hidden");
+    if (row) row.classList.add("hidden");
+    if (iframeWrap) iframeWrap.classList.add("hidden");
+    if (iframe) iframe.src = "";
   }
 }
 
@@ -657,11 +770,7 @@ async function clearTripMapLink() {
 }
 
 function onMapEntryBtnClick() {
-  if (currentTrip?.mapLink) {
-    openMapModal(currentTrip.mapLink, [currentTrip.city, currentTrip.country].filter(Boolean).join(" "));
-  } else {
-    openMapEntryModal();
-  }
+  openMapEntryModal();
 }
 
 function setView(view) {
@@ -1645,13 +1754,13 @@ function bucketRef() { return db.collection("users").doc(currentUser.uid).collec
 // ============================================================
 function onTripBucketFilterChange() {
   const val = document.getElementById("trip-bucket-region")?.value || "";
-  localStorage.setItem("trip_bucket_region", val);
+  if (currentTripId) localStorage.setItem("trip_bucket_region_" + currentTripId, val);
   renderTripBucket(allBucketItems);
 }
 
 async function loadTripBucketItems() {
   if (!currentUser) return;
-  const saved = localStorage.getItem("trip_bucket_region") || "";
+  const saved = currentTripId ? (localStorage.getItem("trip_bucket_region_" + currentTripId) || "") : "";
   const inp = document.getElementById("trip-bucket-region");
   if (inp && inp.value === "" && saved) inp.value = saved;
   const snap = await bucketRef().get().catch(() => ({ docs: [] }));
@@ -1974,7 +2083,7 @@ function renderBucketEditModeRow(i, cats) {
     </select></td>
     <td><input type="text" id="em-bkt-notes-${i.id}" value="${escHtml(i.notes)}" placeholder="비고" oninput="markDirty('bucket','${i.id}')" /></td>
     <td style="text-align:center;padding:4px">
-      <input type="checkbox" class="row-check bkt-row-check" id="bkt-check-${i.id}" data-id="${i.id}" ${isChecked?"checked":""} onchange="onRowCheckChange('bucket')" style="display:none" />
+      <button class="em-del-btn" onclick="deleteBucketItem('${i.id}')" title="삭제">${ICON_TRASH}</button>
     </td>
   </tr>`;
 }
@@ -1998,60 +2107,32 @@ async function saveBucketEditModeRow(id, silent) {
 }
 
 // ============================================================
-// 샘플 데이터
+// 여행 요약 이미지 추출
 // ============================================================
-async function seedSampleData() {
-  if (!currentUser) { showToast("먼저 로그인해주세요!"); return; }
-  if (!confirm("삿포로 여행 샘플 데이터를 추가할까요?")) return;
-  const btn = document.getElementById("seed-btn");
-  if (btn) { btn.disabled = true; btn.textContent = "추가 중..."; }
-
-  const tripRef = await tripsRef().add({
-    title: "삿포로 겨울 여행",
-    country: "일본", city: "삿포로",
-    startDate: "2025-01-20", endDate: "2025-01-24",
-    companions: "혼자",
-    foreignCurrency: "JPY", exchangeRate: 9.2,
-    mapLink: null,
-    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-  });
-  const tid = tripRef.id;
-  const schedRef = tripsRef().doc(tid).collection("schedules");
-  const expRef   = tripsRef().doc(tid).collection("expenses");
-  const resRef   = tripsRef().doc(tid).collection("reservations");
-
-  const schedules = [
-    { date:"2025-01-20", time:"09:00", category:"이동", location:"인천국제공항", content:"인천 출발 → 신치토세", transportation:"항공", notes:null, mapUrl:null },
-    { date:"2025-01-20", time:"12:30", category:"이동", location:"신치토세 공항", content:"공항 도착, 삿포로 이동", transportation:"JR 쾌속에어포트", notes:null, mapUrl:null },
-    { date:"2025-01-21", time:"10:00", category:"관광", location:"오도리 공원", content:"삿포로 눈 축제 구경", transportation:"지하철", notes:"설치 기간 확인 필요", mapUrl:null },
-    { date:"2025-01-21", time:"12:30", category:"식사",  location:"스스키노 라멘 요코초", content:"미소 라멘 점심", transportation:"도보", notes:"줄 서는 곳", mapUrl:null },
-    { date:"2025-01-22", time:"09:30", category:"관광", location:"오타루", content:"오타루 운하 & 유리 공예", transportation:"JR", notes:null, mapUrl:null },
-    { date:"2025-01-23", time:"11:00", category:"쇼핑",  location:"삿포로 스텔라 플레이스", content:"기념품 쇼핑", transportation:"도보", notes:null, mapUrl:null },
-    { date:"2025-01-24", time:"08:00", category:"이동", location:"신치토세 공항", content:"귀국 출발", transportation:"JR 쾌속에어포트", notes:null, mapUrl:null },
-  ];
-  for (const s of schedules) await schedRef.add(s);
-
-  const expenses = [
-    { category:"교통", date:"2025-01-20", title:"왕복 항공권", amountKrw:350000, amountForeign:null },
-    { category:"숙소", date:"2025-01-20", title:"삿포로 호텔 4박", amountKrw:320000, amountForeign:35000 },
-    { category:"교통", date:"2025-01-20", title:"JR 에어포트 왕복", amountKrw:15000, amountForeign:1620 },
-    { category:"식사",  date:"2025-01-21", title:"미소 라멘", amountKrw:12000, amountForeign:1300 },
-    { category:"관광", date:"2025-01-21", title:"설빙 체험", amountKrw:8000, amountForeign:900 },
-    { category:"교통", date:"2025-01-22", title:"오타루 왕복 JR", amountKrw:12000, amountForeign:1340 },
-    { category:"식사",  date:"2025-01-22", title:"오타루 스시", amountKrw:25000, amountForeign:2800 },
-    { category:"쇼핑",  date:"2025-01-23", title:"기념품 & 과자", amountKrw:35000, amountForeign:3800 },
-  ];
-  for (const e of expenses) await expRef.add(e);
-
-  await resRef.add({ type:"항공", from:"인천", to:"신치토세", depart:"2025-01-20T09:00", arrive:"2025-01-20T11:30", flight:"OZ 501", reservationNumber:"ABC123", notes:null, link:null, date:"2025-01-20", title:"인천 → 신치토세" });
-  await resRef.add({ type:"항공", from:"신치토세", to:"인천", depart:"2025-01-24T10:00", arrive:"2025-01-24T12:30", flight:"OZ 502", reservationNumber:"ABC124", notes:null, link:null, date:"2025-01-24", title:"신치토세 → 인천" });
-  await resRef.add({ type:"숙소", title:"도요코인 삿포로역", checkin:"2025-01-20T15:00", checkout:"2025-01-24T10:00", phone:"+81-11-000-0000", reservationNumber:"HT-99887", notes:null, link:null, date:"2025-01-20" });
-
-  await bucketRef().add({ placeName:"삿포로 맥주 박물관", category:"체험", country:"일본", region:"삿포로", season:"연중", notes:"사전 예약 권장", visited:false });
-  await bucketRef().add({ placeName:"모이와 산 전망대", category:"풍경", country:"일본", region:"삿포로", season:"겨울", notes:"야경 필수", visited:false });
-  await bucketRef().add({ placeName:"쿠리야마 위스키 증류소", category:"체험", country:"일본", region:"유바리", season:"연중", notes:null, visited:false });
-
-  showToast("샘플 데이터 추가 완료 🗾");
-  if (btn) { btn.disabled = false; btn.textContent = "🗾 삿포로 샘플 데이터 가져오기"; }
-  loadTrips();
+async function exportTripSummary() {
+  if (typeof html2canvas === "undefined") {
+    showToast("이미지 라이브러리 로드 실패. 새로고침 후 다시 시도해주세요.");
+    return;
+  }
+  setView("timetable");
+  await new Promise(r => setTimeout(r, 400));
+  const el = document.getElementById("schedule-timetable-view");
+  if (!el) return;
+  showToast("이미지 생성 중... ⏳");
+  try {
+    const canvas = await html2canvas(el, {
+      scale: 2,
+      backgroundColor: "#ffffff",
+      useCORS: true,
+      logging: false,
+    });
+    const link = document.createElement("a");
+    link.download = (currentTrip?.title || "여행요약") + "_시간표.png";
+    link.href = canvas.toDataURL("image/png");
+    link.click();
+    showToast("이미지 저장 완료 📷");
+  } catch {
+    showToast("이미지 저장 실패");
+  }
 }
+
