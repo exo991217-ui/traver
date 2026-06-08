@@ -167,27 +167,8 @@
     <div class="card">
       <div class="card-header">
         <h3>🎫 예약 목록</h3>
-        <div style="display:flex;gap:6px;align-items:center">
-          <button class="icon-btn" id="res-edit-mode-btn" onclick="toggleResEditMode()" title="삭제 모드">
-            <svg width="15" height="15"><use href="#icon-trash"/></svg>
-          </button>
-        </div>
       </div>
       <div class="card-body res-card-body">
-        <!-- 예약 편집 배너 -->
-        <div id="res-edit-banner" class="edit-banner hidden">
-          <div class="edit-banner-left">
-            <label style="display:flex;align-items:center;gap:5px;font-size:0.79rem;cursor:pointer">
-              <input type="checkbox" id="res-select-all" onchange="toggleSelectAll('res',this)" style="width:15px;height:15px;accent-color:var(--pd)" />
-              전체선택
-            </label>
-            <span id="res-checked-count" class="check-count">0개 선택</span>
-          </div>
-          <div class="edit-banner-right">
-            <button class="btn btn-outline btn-sm" onclick="toggleResEditMode()">완료</button>
-            <button class="btn btn-danger btn-sm" onclick="deleteChecked('res')">삭제</button>
-          </div>
-        </div>
         <div class="res-3col">
           <!-- 항공 -->
           <div class="res-col">
@@ -391,12 +372,7 @@
         <h1 class="page-title">버킷플레이스 ⭐</h1>
         <p class="page-sub">가보고 싶은 장소를 모아두는 곳</p>
       </div>
-      <div style="display:flex;gap:8px;align-items:center">
-        <button class="icon-btn" id="bucket-edit-mode-btn" onclick="toggleBucketEditMode()" title="삭제 모드">
-          <svg width="15" height="15"><use href="#icon-trash"/></svg>
-        </button>
-        <button class="btn btn-primary btn-sm" onclick="openBucketAddModal()">＋ 추가</button>
-      </div>
+      <button class="btn btn-primary btn-sm" onclick="openBucketAddModal()">＋ 추가</button>
     </div>
 
     <!-- 국내/해외 탭 필터 -->
@@ -404,21 +380,6 @@
       <button class="region-tab active" onclick="setBucketRegionTab('all',this)">전체</button>
       <button class="region-tab" onclick="setBucketRegionTab('domestic',this)">🏔️ 국내</button>
       <button class="region-tab" onclick="setBucketRegionTab('overseas',this)">🌍 해외</button>
-    </div>
-
-    <!-- 버킷 편집모드 배너 -->
-    <div id="bucket-edit-banner" class="edit-banner hidden" style="margin-bottom:12px">
-      <div class="edit-banner-left">
-        <label style="display:flex;align-items:center;gap:5px;font-size:0.79rem;cursor:pointer">
-          <input type="checkbox" id="bkt-select-all" onchange="toggleSelectAll('bucket',this)" style="width:15px;height:15px;accent-color:var(--pd)" />
-          전체선택
-        </label>
-        <span id="bkt-checked-count" class="check-count">0개 선택</span>
-      </div>
-      <div class="edit-banner-right">
-        <button class="btn btn-outline btn-sm" onclick="toggleBucketEditMode()">완료</button>
-        <button class="btn btn-danger btn-sm" onclick="deleteChecked('bucket')">삭제</button>
-      </div>
     </div>
 
     <div class="bucket-list-wrap">
@@ -432,7 +393,7 @@
             <th class="col-sortable" data-col="placeName">장소<button class="col-menu-btn" onclick="toggleColMenu('placeName',this)">⋮</button><div class="col-dropdown" id="col-dd-placeName"></div></th>
             <th class="col-sortable" data-col="season">계절<button class="col-menu-btn" onclick="toggleColMenu('season',this)">⋮</button><div class="col-dropdown" id="col-dd-season"></div></th>
             <th>비고</th>
-            <th id="bucket-action-col" style="width:0;padding:0;text-align:center"></th>
+            <th style="width:32px;padding:4px;text-align:center"></th>
           </tr>
         </thead>
         <tbody id="bucket-list-tbody"></tbody>
