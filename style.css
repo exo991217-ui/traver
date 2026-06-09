@@ -551,7 +551,7 @@ input[type="date"]::-webkit-inner-spin-button { display: none; }
   color: var(--text);
 }
 .data-table tr:last-child td { border-bottom: none; }
-.data-table tbody tr:hover td { background: var(--pl, #eef2ff); }
+.data-table tbody tr:hover td { background: color-mix(in srgb, var(--pd, #4f46e5) 10%, #fff); }
 .data-table tfoot td {
   font-weight: 700;
   border-top: 2px solid var(--pb, #e0e7ff);
@@ -987,7 +987,7 @@ body.page-locked .res-item { cursor: default !important; }
 }
 .bucket-list-table td { padding: 10px 11px; border-bottom: 1px solid var(--border-soft); vertical-align: middle; color: var(--text); }
 .bucket-list-table tr:last-child td { border-bottom: none; }
-.bucket-list-table tbody tr:hover td { background: var(--pl, #eef2ff); }
+.bucket-list-table tbody tr:hover td { background: color-mix(in srgb, var(--pd, #4f46e5) 10%, #fff); }
 .bucket-list-table .done-row td { opacity: .5; text-decoration: line-through; }
 .bucket-list-table .edit-row td { background: var(--pl, #eef2ff); padding: 5px 4px; }
 .bucket-list-table .em-row td { background: var(--pl, #eef2ff); padding: 5px 4px; }
