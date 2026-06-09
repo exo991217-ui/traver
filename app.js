@@ -375,7 +375,6 @@ function renderPackingList(type) {
         <div class="packing-category${isCollapsed ? " collapsed" : ""}"
           ${!locked ? `ondragover="onPackDragOver(event,'${type}','${item.id}')" ondragleave="onPackDragLeave(event)" ondrop="onPackDrop(event,'${type}','${item.id}')"` : ""}>
           <div class="packing-cat-header-row">
-            ${!locked ? `<span class="pack-drag-handle" title="카테고리 드래그">📁</span>` : ""}
             <button class="pack-collapse-btn${isCollapsed ? " collapsed" : ""}" onclick="togglePackingCollapse('${type}','${item.id}')" title="${isCollapsed ? "펼치기" : "접기"}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
             <label class="packing-check-label" onclick="togglePackingCheck('${type}',${item.id})">
               <span class="packing-check-box${item.checked ? " ticked" : partialClass}"></span>
