@@ -1282,21 +1282,19 @@ body.page-locked .res-item { cursor: default !important; }
 .packing-category {
   margin-bottom: 2px;
   border: none;
-  border-left: 3px solid var(--p, #818cf8);
-  border-radius: 0 8px 8px 0;
+  border-radius: 8px;
   overflow: visible;
   background: color-mix(in srgb, var(--p, #818cf8) 8%, transparent);
-  transition: border-color .15s, background .15s;
+  transition: background .15s;
 }
 .packing-category.drag-over {
-  border-color: var(--pd, #4f46e5);
   background: color-mix(in srgb, var(--p, #818cf8) 16%, transparent);
 }
 .packing-cat-header-row {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 7px 8px;
+  padding: 7px 6px;
   background: none;
 }
 .packing-cat-name {
@@ -1304,7 +1302,7 @@ body.page-locked .res-item { cursor: default !important; }
   font-weight: 700;
   color: var(--pd, #4f46e5);
 }
-.packing-children { padding: 3px 6px 4px 16px; }
+.packing-children { padding: 0 6px 4px 30px; }
 
 .packing-item {
   display: flex;
@@ -1315,7 +1313,7 @@ body.page-locked .res-item { cursor: default !important; }
   transition: background .12s;
   position: relative;
 }
-.packing-item:hover { background: color-mix(in srgb, var(--p, #818cf8) 18%, #fff); }
+.packing-item:hover { background: color-mix(in srgb, var(--pd, #4f46e5) 22%, #fff); }
 .packing-item:hover .packing-del-btn { opacity: 1; }
 .packing-item.checked .packing-text { text-decoration: line-through; color: var(--text-muted); opacity: .5; }
 .packing-item.drag-over { background: var(--pb, #e0e7ff); border-radius: 8px; }
@@ -1658,22 +1656,20 @@ body.page-locked .res-item { cursor: default !important; }
    ============================================================ */
 .packing-category {
   border: none;
-  border-left: 3px solid var(--p, #818cf8);
-  border-radius: 0 8px 8px 0;
-  padding: 2px 8px 6px 10px;
+  border-radius: 8px;
+  padding: 0;
   margin-bottom: 4px;
   background: color-mix(in srgb, var(--p, #818cf8) 8%, transparent);
-  transition: border-color .2s, background .2s;
+  transition: background .2s;
 }
 .packing-category.drag-over {
-  border-color: var(--pd);
   background: color-mix(in srgb, var(--p, #818cf8) 16%, transparent);
 }
 .packing-cat-header-row {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 0 4px;
+  padding: 7px 6px;
 }
 .packing-cat-name {
   font-weight: 700;
@@ -1682,8 +1678,7 @@ body.page-locked .res-item { cursor: default !important; }
   flex: 1;
 }
 .packing-children {
-  padding-left: 10px;
-  border-left: 2px solid color-mix(in srgb, var(--p, #818cf8) 25%, transparent);
+  padding: 0 6px 4px 30px;
 }
 .packing-child {
   background: var(--surface);
