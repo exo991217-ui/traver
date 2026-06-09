@@ -1280,30 +1280,31 @@ body.page-locked .res-item { cursor: default !important; }
 
 /* 준비물 카테고리 (계층) */
 .packing-category {
-  margin-bottom: 4px;
-  border: 1.5px solid var(--pb, #e0e7ff);
-  border-radius: 10px;
-  overflow: hidden;
-  background: var(--pl, #eef2ff);
-  transition: border-color .15s;
+  margin-bottom: 2px;
+  border: none;
+  border-left: 3px solid var(--p, #818cf8);
+  border-radius: 0 8px 8px 0;
+  overflow: visible;
+  background: color-mix(in srgb, var(--p, #818cf8) 8%, transparent);
+  transition: border-color .15s, background .15s;
 }
 .packing-category.drag-over {
   border-color: var(--pd, #4f46e5);
-  background: var(--pb, #e0e7ff);
+  background: color-mix(in srgb, var(--p, #818cf8) 16%, transparent);
 }
 .packing-cat-header-row {
   display: flex;
   align-items: center;
   gap: 6px;
   padding: 7px 8px;
-  background: var(--pb, #e0e7ff);
+  background: none;
 }
 .packing-cat-name {
   font-size: .84rem;
-  font-weight: 800;
+  font-weight: 700;
   color: var(--pd, #4f46e5);
 }
-.packing-children { padding: 3px 6px 4px 20px; }
+.packing-children { padding: 3px 6px 4px 16px; }
 
 .packing-item {
   display: flex;
@@ -1314,7 +1315,7 @@ body.page-locked .res-item { cursor: default !important; }
   transition: background .12s;
   position: relative;
 }
-.packing-item:hover { background: var(--surface2); }
+.packing-item:hover { background: color-mix(in srgb, var(--p, #818cf8) 18%, #fff); }
 .packing-item:hover .packing-del-btn { opacity: 1; }
 .packing-item.checked .packing-text { text-decoration: line-through; color: var(--text-muted); opacity: .5; }
 .packing-item.drag-over { background: var(--pb, #e0e7ff); border-radius: 8px; }
@@ -1656,32 +1657,33 @@ body.page-locked .res-item { cursor: default !important; }
    준비물 계층 구조 + 드래그 (변경 7·8)
    ============================================================ */
 .packing-category {
-  border: 1.5px dashed var(--border);
-  border-radius: 10px;
-  padding: 6px 8px 8px;
-  margin-bottom: 6px;
-  background: var(--surface2);
+  border: none;
+  border-left: 3px solid var(--p, #818cf8);
+  border-radius: 0 8px 8px 0;
+  padding: 2px 8px 6px 10px;
+  margin-bottom: 4px;
+  background: color-mix(in srgb, var(--p, #818cf8) 8%, transparent);
   transition: border-color .2s, background .2s;
 }
 .packing-category.drag-over {
   border-color: var(--pd);
-  background: var(--pl);
+  background: color-mix(in srgb, var(--p, #818cf8) 16%, transparent);
 }
 .packing-cat-header-row {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 0 6px;
+  padding: 5px 0 4px;
 }
 .packing-cat-name {
   font-weight: 700;
-  font-size: .88rem;
-  color: var(--text-base);
+  font-size: .84rem;
+  color: var(--pd, #4f46e5);
   flex: 1;
 }
 .packing-children {
-  padding-left: 12px;
-  border-left: 2px solid var(--border-soft);
+  padding-left: 10px;
+  border-left: 2px solid color-mix(in srgb, var(--p, #818cf8) 25%, transparent);
 }
 .packing-child {
   background: var(--surface);
@@ -1880,16 +1882,27 @@ body.page-locked .res-item { cursor: default !important; }
   background: none;
   border: none;
   cursor: pointer;
-  font-size: .68rem;
-  color: var(--text-muted);
-  padding: 2px 5px;
-  border-radius: 4px;
+  color: var(--p, #818cf8);
+  padding: 3px 4px;
+  border-radius: 6px;
   flex-shrink: 0;
-  line-height: 1;
-  transition: color .15s, background .15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color .15s, background .15s, transform .18s;
   font-family: inherit;
 }
-.pack-collapse-btn:hover { color: var(--pd); background: var(--pl, #eef2ff); }
+.pack-collapse-btn svg {
+  display: block;
+  transition: transform .18s ease;
+}
+.pack-collapse-btn.collapsed svg {
+  transform: rotate(-90deg);
+}
+.pack-collapse-btn:hover {
+  color: var(--pd);
+  background: color-mix(in srgb, var(--p, #818cf8) 15%, #fff);
+}
 
 /* 잠금 버튼 활성 상태 */
 .packing-lock-btn-active {
