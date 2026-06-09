@@ -4,16 +4,16 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 /* ---- Themes ---- */
-.theme-blue     { --p:#3b82f6; --pd:#1d4ed8; --pl:#eff6ff; --pb:#bfdbfe; --bg:#eff6ff; --surface:#fff; --surface2:#dbeafe; }
-.theme-pink     { --p:#f472b6; --pd:#db2777; --pl:#fdf2f8; --pb:#fce7f3; --bg:#fef0f8; --surface:#fff; --surface2:#fce7f3; }
-.theme-orange   { --p:#fb923c; --pd:#ea580c; --pl:#fff7ed; --pb:#ffedd5; --bg:#fff5ec; --surface:#fff; --surface2:#ffedd5; }
-.theme-green    { --p:#4ade80; --pd:#16a34a; --pl:#f0fdf4; --pb:#dcfce7; --bg:#f0fdf4; --surface:#fff; --surface2:#dcfce7; }
-.theme-purple   { --p:#a78bfa; --pd:#7c3aed; --pl:#f5f3ff; --pb:#ede9fe; --bg:#f3f0ff; --surface:#fff; --surface2:#ede9fe; }
-.theme-mint     { --p:#2dd4bf; --pd:#0d9488; --pl:#f0fdfa; --pb:#ccfbf1; --bg:#ecfdfb; --surface:#fff; --surface2:#ccfbf1; }
-.theme-rose     { --p:#fb7185; --pd:#e11d48; --pl:#fff1f2; --pb:#ffe4e6; --bg:#fff0f2; --surface:#fff; --surface2:#ffe4e6; }
-.theme-sky      { --p:#38bdf8; --pd:#0284c7; --pl:#f0f9ff; --pb:#e0f2fe; --bg:#edf8ff; --surface:#fff; --surface2:#e0f2fe; }
-.theme-red      { --p:#f87171; --pd:#dc2626; --pl:#fff5f5; --pb:#fee2e2; --bg:#fff2f2; --surface:#fff; --surface2:#fee2e2; }
-.theme-charcoal { --p:#9ca3af; --pd:#374151; --pl:#f3f4f6; --pb:#e5e7eb; --bg:#f1f2f4; --surface:#fff; --surface2:#e5e7eb; }
+.theme-blue     { --p:#3b82f6; --pd:#1d4ed8; --pl:#eff6ff; --pb:#bfdbfe; --bg:#dbeafe; --surface:#fff; --surface2:#dbeafe; }
+.theme-pink     { --p:#f472b6; --pd:#db2777; --pl:#fdf2f8; --pb:#fce7f3; --bg:#fce7f3; --surface:#fff; --surface2:#fce7f3; }
+.theme-orange   { --p:#fb923c; --pd:#ea580c; --pl:#fff7ed; --pb:#ffedd5; --bg:#ffedd5; --surface:#fff; --surface2:#ffedd5; }
+.theme-green    { --p:#4ade80; --pd:#16a34a; --pl:#f0fdf4; --pb:#dcfce7; --bg:#dcfce7; --surface:#fff; --surface2:#dcfce7; }
+.theme-purple   { --p:#a78bfa; --pd:#7c3aed; --pl:#f5f3ff; --pb:#ede9fe; --bg:#ede9fe; --surface:#fff; --surface2:#ede9fe; }
+.theme-mint     { --p:#2dd4bf; --pd:#0d9488; --pl:#f0fdfa; --pb:#ccfbf1; --bg:#ccfbf1; --surface:#fff; --surface2:#ccfbf1; }
+.theme-rose     { --p:#fb7185; --pd:#e11d48; --pl:#fff1f2; --pb:#ffe4e6; --bg:#ffe4e6; --surface:#fff; --surface2:#ffe4e6; }
+.theme-sky      { --p:#38bdf8; --pd:#0284c7; --pl:#f0f9ff; --pb:#e0f2fe; --bg:#e0f2fe; --surface:#fff; --surface2:#e0f2fe; }
+.theme-red      { --p:#f87171; --pd:#dc2626; --pl:#fff5f5; --pb:#fee2e2; --bg:#fee2e2; --surface:#fff; --surface2:#fee2e2; }
+.theme-charcoal { --p:#9ca3af; --pd:#374151; --pl:#f3f4f6; --pb:#e5e7eb; --bg:#e5e7eb; --surface:#fff; --surface2:#e5e7eb; }
 
 :root {
   --border: #e5e7eb;
