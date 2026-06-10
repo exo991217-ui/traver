@@ -70,6 +70,8 @@
 
   <!-- ====== HOME ====== -->
   <div id="page-home" class="page active">
+    <div class="home-layout">
+    <div class="home-left">
     <div class="home-header">
       <div>
         <h1 class="page-title">내 여행 🗺️</h1>
@@ -181,7 +183,54 @@
       </div>
 
     </div>
-  </div>
+    </div><!-- end home-left -->
+
+    <!-- ====== 우측: 여행 계획 패널 ====== -->
+    <div class="home-right">
+      <div class="plan-panel-wrap">
+        <div class="plan-panel-header">
+          <span class="plan-panel-title">📅 계획된 여행 일정</span>
+          <button class="btn btn-primary btn-sm" onclick="openAddPlanForm()">＋ 추가</button>
+        </div>
+
+        <!-- 계획 추가 폼 -->
+        <div id="plan-add-form" class="plan-add-form hidden">
+          <div class="plan-add-form-inner">
+            <div class="plan-add-row">
+              <div class="form-group full">
+                <label>장소 *</label>
+                <input type="text" id="plan-add-place" placeholder="예: 도쿄, 일본" />
+              </div>
+            </div>
+            <div class="plan-add-row">
+              <div class="form-group">
+                <label>시작일</label>
+                <input type="date" id="plan-add-start" />
+              </div>
+              <div class="form-group">
+                <label>종료일</label>
+                <input type="date" id="plan-add-end" />
+              </div>
+            </div>
+            <div class="plan-add-row">
+              <div class="form-group full">
+                <label>누구와?</label>
+                <input type="text" id="plan-add-companions" placeholder="예: 혼자, 친구 2명" />
+              </div>
+            </div>
+            <div class="plan-add-actions">
+              <button class="btn btn-ghost btn-sm" onclick="closeAddPlanForm()">취소</button>
+              <button class="btn btn-primary btn-sm" onclick="saveNewPlan()">추가</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 계획 목록 -->
+        <div id="plan-list" class="plan-list"></div>
+      </div>
+    </div><!-- end home-right -->
+    </div><!-- end home-layout -->
+  </div><!-- end page-home -->
 
   <!-- ====== TRIP DETAIL ====== -->
   <div id="page-trip" class="page">
