@@ -255,10 +255,11 @@ async function loadTrips() {
   const c = document.getElementById("trips-container");
   c.innerHTML = "<div class='spinner'></div>";
   const snap = await tripsRef().orderBy("createdAt","desc").get().catch(() => ({ docs: [] }));
-  let trips = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  const allTrips = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  syncTripsToPlans(allTrips); // 반드시 필터 전 전체 목록으로 동기화
+  let trips = [...allTrips];
   if (tripFilter === "overseas") trips = trips.filter(t => t.country && !["한국","국내"].includes(t.country));
   if (tripFilter === "domestic") trips = trips.filter(t => !t.country || ["한국","국내"].includes(t.country));
-  syncTripsToPlans(trips);
   if (!trips.length) {
     c.innerHTML = `<div class="empty-state"><div class="icon">🗺️</div><h3>아직 여행이 없어요</h3><p>첫 번째 여행을 만들어보세요!</p></div>`;
     return;
@@ -2403,18 +2404,25 @@ function saveTravelPlans(plans) {
 }
 
 // Firebase 여행 목록과 localStorage 동기화
-// — 없는 여행은 추가, 삭제된 여행(tripId 연동)은 제거
+// — 없는 여행은 추가, 삭제된 여행은 제거 (legacy trip_TIMESTAMP 항목도 포함)
 function syncTripsToPlans(firebaseTrips) {
   let plans = getTravelPlans();
   const firebaseIds = new Set(firebaseTrips.map(t => t.id));
 
-  // 1) Firebase에서 삭제된 연동 항목 제거
-  plans = plans.filter(p => !p.tripId || firebaseIds.has(p.tripId));
+  // 연동 항목 정리:
+  // 1) tripId 필드가 있으면 → Firebase에 존재해야 함
+  // 2) id가 "trip_XXX" 형식이면 → XXX가 Firebase ID여야 함 (구버전 timestamp도 제거)
+  // 3) 나머지(수동 추가) → 유지
+  plans = plans.filter(p => {
+    if (p.tripId) return firebaseIds.has(p.tripId);
+    if (p.id && p.id.startsWith("trip_")) return firebaseIds.has(p.id.slice(5));
+    return true;
+  });
 
-  // 2) 아직 없는 Firebase 여행 추가
+  // 아직 없는 Firebase 여행 추가
   firebaseTrips.forEach(t => {
     const planId = "trip_" + t.id;
-    if (!plans.find(p => p.id === planId)) {
+    if (!plans.find(p => p.id === planId || p.tripId === t.id)) {
       const ts = Date.now() + Math.floor(Math.random() * 9999);
       plans.push({
         id: planId,
@@ -2471,19 +2479,30 @@ function renderPlanCard(p, done) {
     return parts.length === 3 ? parts[1] + "/" + parts[2] : d;
   };
   const place = escHtml(p.place || "미정");
+  const dateStr = (p.startDate || p.endDate)
+    ? [fmt(p.startDate), fmt(p.endDate)].filter(Boolean).join("~")
+    : "";
+  const companions = p.companions ? escHtml(p.companions) : "";
+  const isLinked = !!(p.tripId || (p.id && p.id.startsWith("trip_")));
+
+  const leftCol = `
+    <div class="plan-row-left">
+      <span class="plan-row-place${isLinked ? " plan-place-link" : ""}"
+        ${isLinked ? `onclick="navigateToPlan('${p.id}')" title="여행 상세 보기"` : ""}>${place}</span>
+      ${companions ? `<span class="plan-row-companions">👥 ${companions}</span>` : ""}
+    </div>`;
 
   if (done) {
     return `
       <div class="plan-row plan-row-done" id="plan-card-${p.id}">
-        <span class="plan-row-place">${place}</span>
-        <span class="plan-done-badge">완료 ✓</span>
-        <button class="plan-row-del" onclick="deleteTravelPlan('${p.id}')">×</button>
+        <div class="plan-row-main">
+          ${leftCol}
+          ${dateStr ? `<span class="plan-row-date">${dateStr}</span>` : ""}
+          <span class="plan-done-badge">완료 ✓</span>
+          <button class="plan-row-del" onclick="deleteTravelPlan('${p.id}')">×</button>
+        </div>
       </div>`;
   }
-
-  const dateStr = (p.startDate || p.endDate)
-    ? [fmt(p.startDate), fmt(p.endDate)].filter(Boolean).join("~")
-    : "";
 
   const items = p.budgetItems || [];
   const total = items.reduce((s, i) => s + (parseInt(i.amount) || 0), 0);
@@ -2502,7 +2521,7 @@ function renderPlanCard(p, done) {
   return `
     <div class="plan-row" id="plan-card-${p.id}">
       <div class="plan-row-main">
-        <span class="plan-row-place">${place}</span>
+        ${leftCol}
         ${dateStr ? `<span class="plan-row-date">${dateStr}</span>` : ""}
         <button class="plan-row-budget" onclick="togglePlanBudget('${p.id}')">
           💰 <span id="plan-total-${p.id}">${total.toLocaleString()}원</span>
@@ -2516,6 +2535,14 @@ function renderPlanCard(p, done) {
         <button class="plan-budget-add-item" onclick="addPlanBudgetItem('${p.id}')">＋ 항목 추가</button>
       </div>` : ""}
     </div>`;
+}
+
+// 장소명 클릭 시 해당 여행 상세 페이지로 이동
+function navigateToPlan(planId) {
+  const p = getTravelPlans().find(x => x.id === planId);
+  if (!p) return;
+  const tripId = p.tripId || (p.id.startsWith("trip_") ? p.id.slice(5) : null);
+  if (tripId) openTrip(tripId);
 }
 
 function togglePlanBudget(id) {
