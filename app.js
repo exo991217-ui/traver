@@ -258,6 +258,7 @@ async function loadTrips() {
   let trips = snap.docs.map(d => ({ id: d.id, ...d.data() }));
   if (tripFilter === "overseas") trips = trips.filter(t => t.country && !["한국","국내"].includes(t.country));
   if (tripFilter === "domestic") trips = trips.filter(t => !t.country || ["한국","국내"].includes(t.country));
+  syncTripsToPlans(trips);
   if (!trips.length) {
     c.innerHTML = `<div class="empty-state"><div class="icon">🗺️</div><h3>아직 여행이 없어요</h3><p>첫 번째 여행을 만들어보세요!</p></div>`;
     return;
@@ -714,7 +715,7 @@ async function createTrip() {
     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
   };
   const ref = await tripsRef().add(data);
-  addPlanFromTrip(data);
+  addPlanFromTrip(data, ref.id);
   toggleCreateTrip();
   showToast("여행 생성 완료! 🎉");
   openTrip(ref.id);
@@ -730,6 +731,7 @@ async function deleteTrip(id) {
     if (snap.docs.length) await batch.commit();
   }
   await tripsRef().doc(id).delete();
+  removePlanByTripId(id);
   showToast("삭제됐어요"); loadTrips();
 }
 
@@ -2393,14 +2395,52 @@ const PLAN_STORAGE_KEY = "travelPlans";
 let planBudgetExpanded = {};
 
 function getTravelPlans() {
-  try {
-    const s = localStorage.getItem(PLAN_STORAGE_KEY);
-    return s ? JSON.parse(s) : [];
-  } catch { return []; }
+  try { const s = localStorage.getItem(PLAN_STORAGE_KEY); return s ? JSON.parse(s) : []; }
+  catch { return []; }
 }
-
 function saveTravelPlans(plans) {
   localStorage.setItem(PLAN_STORAGE_KEY, JSON.stringify(plans));
+}
+
+// Firebase 여행 목록과 localStorage 동기화
+// — 없는 여행은 추가, 삭제된 여행(tripId 연동)은 제거
+function syncTripsToPlans(firebaseTrips) {
+  let plans = getTravelPlans();
+  const firebaseIds = new Set(firebaseTrips.map(t => t.id));
+
+  // 1) Firebase에서 삭제된 연동 항목 제거
+  plans = plans.filter(p => !p.tripId || firebaseIds.has(p.tripId));
+
+  // 2) 아직 없는 Firebase 여행 추가
+  firebaseTrips.forEach(t => {
+    const planId = "trip_" + t.id;
+    if (!plans.find(p => p.id === planId)) {
+      const ts = Date.now() + Math.floor(Math.random() * 9999);
+      plans.push({
+        id: planId,
+        tripId: t.id,
+        place: t.city || t.title || "미정",
+        startDate: t.startDate || null,
+        endDate:   t.endDate   || null,
+        companions: t.companions || null,
+        budgetItems: [
+          { id: String(ts),     label: "숙박", amount: 0 },
+          { id: String(ts + 1), label: "식비", amount: 0 },
+        ],
+        fromTrip: t.title || null,
+      });
+    }
+  });
+
+  saveTravelPlans(plans);
+  renderPlanList();
+}
+
+// 연동 여행 삭제 시 즉시 제거
+function removePlanByTripId(tripId) {
+  const plans = getTravelPlans().filter(p => p.tripId !== tripId && p.id !== "trip_" + tripId);
+  saveTravelPlans(plans);
+  renderPlanList();
 }
 
 function renderPlanList() {
@@ -2411,69 +2451,70 @@ function renderPlanList() {
     listEl.innerHTML = `<div class="plan-empty">아직 계획된 여행이 없어요.<br>＋ 추가 버튼으로 등록해보세요 ✈️</div>`;
     return;
   }
-  listEl.innerHTML = plans.map(p => renderPlanCard(p)).join("");
+  const today = new Date().toISOString().slice(0, 10);
+  const isDone = p => !!(p.endDate && p.endDate < today);
+
+  const sorted = [...plans].sort((a, b) => {
+    const ad = isDone(a), bd = isDone(b);
+    if (ad !== bd) return ad ? 1 : -1;
+    const as = a.startDate || "9999-99-99";
+    const bs = b.startDate || "9999-99-99";
+    return as.localeCompare(bs);
+  });
+  listEl.innerHTML = sorted.map(p => renderPlanCard(p, isDone(p))).join("");
 }
 
-function renderPlanCard(p) {
-  const fmt = (d) => {
+function renderPlanCard(p, done) {
+  const fmt = d => {
     if (!d) return "";
     const parts = d.split("-");
     return parts.length === 3 ? parts[1] + "/" + parts[2] : d;
   };
-  const dateStr = p.startDate || p.endDate
-    ? [fmt(p.startDate), fmt(p.endDate)].filter(Boolean).join(" ~ ")
-    : "일정 미정";
+  const place = escHtml(p.place || "미정");
+
+  if (done) {
+    return `
+      <div class="plan-row plan-row-done" id="plan-card-${p.id}">
+        <span class="plan-row-place">${place}</span>
+        <span class="plan-done-badge">완료 ✓</span>
+        <button class="plan-row-del" onclick="deleteTravelPlan('${p.id}')">×</button>
+      </div>`;
+  }
+
+  const dateStr = (p.startDate || p.endDate)
+    ? [fmt(p.startDate), fmt(p.endDate)].filter(Boolean).join("~")
+    : "";
+
   const items = p.budgetItems || [];
   const total = items.reduce((s, i) => s + (parseInt(i.amount) || 0), 0);
   const isExpanded = !!planBudgetExpanded[p.id];
 
-  const itemsHtml = isExpanded ? items.map(item => `
+  const itemsHtml = items.map(item => `
     <div class="plan-budget-item">
-      <input type="text" class="plan-budget-item-label"
-        value="${escHtml(item.label)}"
-        placeholder="항목명"
+      <input type="text" class="plan-budget-item-label" value="${escHtml(item.label)}" placeholder="항목명"
         onchange="updatePlanBudgetItem('${p.id}','${item.id}','label',this.value)" />
-      <input type="number" class="plan-budget-item-amount"
-        value="${item.amount || ""}"
-        placeholder="0"
+      <input type="number" class="plan-budget-item-amount" value="${item.amount || ""}" placeholder="0"
         oninput="updatePlanBudgetItem('${p.id}','${item.id}','amount',this.value)" />
       <span class="plan-budget-item-unit">원</span>
-      <button class="plan-budget-item-del" title="삭제"
-        onclick="deletePlanBudgetItem('${p.id}','${item.id}')">×</button>
-    </div>`).join("") : "";
-
-  const detailHtml = isExpanded ? `
-    <div class="plan-budget-detail">
-      ${itemsHtml}
-      <button class="plan-budget-add-item" onclick="addPlanBudgetItem('${p.id}')">＋ 항목 추가</button>
-    </div>` : "";
-
-  const fromTripBadge = p.fromTrip
-    ? `<span style="font-size:0.7rem;color:var(--pd,#4f46e5);font-weight:700;">✈ 여행 연동</span>`
-    : "";
+      <button class="plan-budget-item-del" onclick="deletePlanBudgetItem('${p.id}','${item.id}')">×</button>
+    </div>`).join("");
 
   return `
-    <div class="plan-card" id="plan-card-${p.id}">
-      <div class="plan-card-header">
-        <div class="plan-card-info">
-          <div class="plan-card-place">${escHtml(p.place || "장소 미정")}</div>
-          <div class="plan-card-meta">
-            <span>📅 ${dateStr}</span>
-            ${p.companions ? `<span>👥 ${escHtml(p.companions)}</span>` : ""}
-            ${fromTripBadge}
-          </div>
-        </div>
-        <button class="plan-card-del" title="삭제"
-          onclick="deleteTravelPlan('${p.id}')">×</button>
+    <div class="plan-row" id="plan-card-${p.id}">
+      <div class="plan-row-main">
+        <span class="plan-row-place">${place}</span>
+        ${dateStr ? `<span class="plan-row-date">${dateStr}</span>` : ""}
+        <button class="plan-row-budget" onclick="togglePlanBudget('${p.id}')">
+          💰 <span id="plan-total-${p.id}">${total.toLocaleString()}원</span>
+          <span class="plan-budget-caret">${isExpanded ? "▲" : "▼"}</span>
+        </button>
+        <button class="plan-row-del" onclick="deleteTravelPlan('${p.id}')">×</button>
       </div>
-      <div class="plan-budget-section">
-        <div class="plan-budget-header" onclick="togglePlanBudget('${p.id}')">
-          <span class="plan-budget-label">💰 예산</span>
-          <span class="plan-budget-total" id="plan-total-${p.id}">${total.toLocaleString()}원</span>
-          <span class="plan-budget-toggle">${isExpanded ? "▲" : "▼"}</span>
-        </div>
-        ${detailHtml}
-      </div>
+      ${isExpanded ? `
+      <div class="plan-budget-detail">
+        ${itemsHtml}
+        <button class="plan-budget-add-item" onclick="addPlanBudgetItem('${p.id}')">＋ 항목 추가</button>
+      </div>` : ""}
     </div>`;
 }
 
@@ -2502,10 +2543,9 @@ function updatePlanBudgetItem(planId, itemId, field, value) {
   if (field === "amount") item.amount = parseInt(value) || 0;
   else item[field] = value;
   saveTravelPlans(plans);
-  // 합계만 업데이트 (포커스 유지)
   const newTotal = (p.budgetItems || []).reduce((s, i) => s + (parseInt(i.amount) || 0), 0);
-  const totalEl = document.getElementById("plan-total-" + planId);
-  if (totalEl) totalEl.textContent = newTotal.toLocaleString() + "원";
+  const el = document.getElementById("plan-total-" + planId);
+  if (el) el.textContent = newTotal.toLocaleString() + "원";
 }
 
 function deletePlanBudgetItem(planId, itemId) {
@@ -2563,14 +2603,15 @@ function saveNewPlan() {
   showToast("여행 계획이 추가됐어요 ✈️");
 }
 
-// 왼쪽 여행 등록 시 계획 패널에도 자동 추가
-function addPlanFromTrip(tripData) {
+// 새 여행 등록 시 계획 패널에도 자동 추가 (tripId 연동)
+function addPlanFromTrip(tripData, tripId) {
   const ts = Date.now();
   const plan = {
-    id: "trip_" + String(ts),
-    place: [tripData.city, tripData.country].filter(Boolean).join(", ") || tripData.title || "미정",
+    id: "trip_" + (tripId || ts),
+    tripId: tripId || null,
+    place: tripData.city || tripData.title || "미정",
     startDate: tripData.startDate || null,
-    endDate:   tripData.endDate || null,
+    endDate:   tripData.endDate   || null,
     companions: tripData.companions || null,
     budgetItems: [
       { id: String(ts + 1), label: "숙박", amount: 0 },
@@ -2579,7 +2620,9 @@ function addPlanFromTrip(tripData) {
     fromTrip: tripData.title || null,
   };
   const plans = getTravelPlans();
-  plans.unshift(plan);
-  saveTravelPlans(plans);
+  if (!plans.find(p => p.tripId === plan.tripId)) {
+    plans.unshift(plan);
+    saveTravelPlans(plans);
+  }
   renderPlanList();
 }
