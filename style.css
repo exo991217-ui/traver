@@ -1766,6 +1766,275 @@ body.page-locked .res-item { cursor: default !important; }
 /* 접힌 카테고리 — 하위 숨김 */
 .packing-category.collapsed .packing-children { display: none; }
 
+/* ============================================================
+   홈 2열 레이아웃 (내 여행 + 계획된 여행 일정)
+   ============================================================ */
+.home-layout {
+  display: grid;
+  grid-template-columns: 1fr 330px;
+  gap: 24px;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .home-layout { grid-template-columns: 1fr; }
+  .home-right { display: none; }
+}
+.home-left { min-width: 0; }
+.home-right { position: sticky; top: 76px; }
+
+/* ============================================================
+   여행 계획 패널
+   ============================================================ */
+.plan-panel-wrap {
+  background: var(--surface, #fff);
+  border: 1.5px solid var(--border-soft);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.plan-panel-header {
+  padding: 14px 18px;
+  border-bottom: 2px solid var(--pd, #4f46e5);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--pb, #bfdbfe);
+}
+.plan-panel-title {
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: var(--text);
+}
+
+/* 추가 폼 */
+.plan-add-form {
+  border-bottom: 1.5px solid var(--border-soft);
+  background: color-mix(in srgb, var(--pd, #4f46e5) 6%, #fff);
+  animation: slide-down .18s ease;
+}
+.plan-add-form-inner {
+  padding: 16px 18px;
+}
+.plan-add-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.plan-add-row .form-group { flex: 1; min-width: 0; }
+.plan-add-row .form-group label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  display: block;
+  margin-bottom: 4px;
+  letter-spacing: 0.03em;
+}
+.plan-add-row input {
+  width: 100%;
+  padding: 7px 10px;
+  font-size: 0.82rem;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface, #fff);
+}
+.plan-add-row input:focus {
+  border-color: var(--pd, #4f46e5);
+  outline: none;
+  box-shadow: 0 0 0 3px var(--pl, #eef2ff);
+}
+.plan-add-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+/* 계획 목록 */
+.plan-list {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 180px);
+  overflow-y: auto;
+}
+.plan-empty {
+  padding: 36px 20px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  line-height: 1.8;
+}
+
+/* 계획 카드 */
+.plan-card {
+  border-bottom: 1px solid var(--border-soft);
+  transition: background .15s;
+}
+.plan-card:last-child { border-bottom: none; }
+.plan-card:hover { background: color-mix(in srgb, var(--pd, #4f46e5) 4%, #fff); }
+
+.plan-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 14px 16px 10px;
+  gap: 8px;
+}
+.plan-card-info { flex: 1; min-width: 0; }
+.plan-card-place {
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: var(--text);
+  margin-bottom: 5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.plan-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+.plan-card-del {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 1.1rem;
+  padding: 0 4px;
+  border-radius: 6px;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity .13s, color .13s;
+  flex-shrink: 0;
+}
+.plan-card:hover .plan-card-del { opacity: 1; }
+.plan-card-del:hover { color: #dc2626; }
+
+/* 예산 섹션 */
+.plan-budget-section {
+  border-top: 1px dashed var(--border);
+  margin: 0 16px 14px;
+  border-radius: 0 0 10px 10px;
+  overflow: hidden;
+}
+.plan-budget-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 12px;
+  cursor: pointer;
+  background: var(--surface2, #eef2ff);
+  border-radius: 8px;
+  transition: background .14s;
+  user-select: none;
+}
+.plan-budget-header:hover { background: color-mix(in srgb, var(--pd, #4f46e5) 18%, #fff); }
+.plan-budget-label {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+.plan-budget-total {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--pd, #4f46e5);
+  flex: 1;
+  text-align: right;
+  padding-right: 4px;
+}
+.plan-budget-toggle {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+/* 예산 세부 내역 */
+.plan-budget-detail {
+  background: var(--surface, #fff);
+  border: 1.5px solid var(--border-soft);
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  padding: 10px 12px 8px;
+  animation: slide-down .16s ease;
+}
+.plan-budget-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.plan-budget-item-label {
+  flex: 1;
+  min-width: 0;
+  border: 1.5px solid var(--border);
+  border-radius: 7px;
+  padding: 5px 8px;
+  font-size: 0.8rem;
+  background: var(--surface, #fff);
+  color: var(--text);
+  font-family: 'Noto Sans KR', sans-serif;
+}
+.plan-budget-item-label:focus {
+  border-color: var(--pd, #4f46e5);
+  outline: none;
+}
+.plan-budget-item-amount {
+  width: 88px;
+  flex-shrink: 0;
+  border: 1.5px solid var(--border);
+  border-radius: 7px;
+  padding: 5px 8px;
+  font-size: 0.8rem;
+  text-align: right;
+  background: var(--surface, #fff);
+  color: var(--text);
+  font-family: 'Noto Sans KR', sans-serif;
+}
+.plan-budget-item-amount:focus {
+  border-color: var(--pd, #4f46e5);
+  outline: none;
+}
+.plan-budget-item-unit {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.plan-budget-item-del {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 1rem;
+  padding: 0 4px;
+  border-radius: 6px;
+  line-height: 1;
+  transition: color .13s;
+  flex-shrink: 0;
+}
+.plan-budget-item-del:hover { color: #dc2626; }
+
+.plan-budget-add-item {
+  width: 100%;
+  margin-top: 6px;
+  padding: 7px;
+  border: 1.5px dashed var(--border);
+  border-radius: 8px;
+  background: none;
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  transition: all .15s;
+  font-family: 'Noto Sans KR', sans-serif;
+}
+.plan-budget-add-item:hover {
+  border-color: var(--pd, #4f46e5);
+  color: var(--pd, #4f46e5);
+  background: color-mix(in srgb, var(--pd, #4f46e5) 8%, #fff);
+}
+
 /* ---- Utils ---- */
 .hidden { display: none !important; }
 
